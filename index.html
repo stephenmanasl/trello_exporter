@@ -35,6 +35,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   <h2>Card Info</h2>
   <div class="field-group">
     <label><input type="checkbox" id="chk-name" checked> Name</label>
+    <label><input type="checkbox" id="chk-number" checked> Card Number</label>
     <label><input type="checkbox" id="chk-desc"> Description</label>
     <label><input type="checkbox" id="chk-url"> URL</label>
     <label><input type="checkbox" id="chk-pos"> Position</label>
@@ -75,7 +76,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   var boardUrl = '';
 
   var FIELD_IDS = {
-    name: 'chk-name', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
+    name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
     checklists: 'chk-checklists', comments: 'chk-comments',
     attachments: 'chk-attachments', activity: 'chk-activity'
@@ -151,6 +152,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function buildCardData(card) {
     var obj = {};
     if (isChecked('name'))  obj.name = card.name;
+    if (isChecked('number')) obj.cardNumber = card.idShort;
     if (isChecked('desc'))  obj.description = card.desc;
     if (isChecked('url'))   obj.url = card.url;
     if (isChecked('pos'))   obj.position = card.pos;
@@ -202,7 +204,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
     var headers = [];
     checkedFields.forEach(function (f) {
-      if (f === 'checklists') headers.push('Checklists');
+      if (f === 'number') headers.push('Card #');
+      else if (f === 'checklists') headers.push('Checklists');
       else if (f === 'comments') headers.push('Comments');
       else if (f === 'attachments') headers.push('Attachments');
       else if (f === 'activity') headers.push('Activity');
@@ -217,6 +220,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         var val;
         switch (f) {
           case 'name':  val = card.name; break;
+          case 'number': val = card.idShort; break;
           case 'desc':  val = card.desc; break;
           case 'url':   val = card.url; break;
           case 'pos':   val = card.pos; break;
@@ -240,7 +244,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function buildApiUrl(boardId) {
     var needNested = isChecked('checklists') || isChecked('comments') || isChecked('attachments') || isChecked('activity');
-    var base = '/1/boards/' + boardId + '/cards?fields=name,desc,url,pos,due&list=true&members=true&labels=all';
+    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due&list=true&members=true&labels=all';
     if (needNested) {
       base += '&checklists=all&checkItems=all';
       base += '&actions=commentCard,copyCommentCard,createCard,moveCardToBoard,moveCardFromBoard,updateCard,addLabelToCard,removeLabelFromCard,addMemberToCard,removeMemberFromCard,addAttachmentToCard,deleteAttachmentFromCard';
@@ -277,14 +281,17 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
-  if (window.location.hash === '#popup') {
+  // Popup setup — attach export button handler
+  try {
     var t = T.iframe();
     t.render(function () {
-      document.getElementById('btn-export').addEventListener('click', function () {
-        doExport(t);
-      });
+      var btn = document.getElementById('btn-export');
+      if (btn) btn.addEventListener('click', function () { doExport(t); });
     });
-  } else {
+  } catch (e) {}
+
+  // Connector setup — register board button
+  try {
     T.initialize({
       'board-buttons': function (t) {
         return [{
@@ -304,7 +311,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }];
       }
     });
-  }
+  } catch (e) {}
 })();
 </script>
 </body>
