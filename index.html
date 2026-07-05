@@ -274,9 +274,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   }
 
   if (window.location.hash === '#popup') {
-    document.getElementById('btn-export').addEventListener('click', function () {
-      var t = T.iframe();
-      doExport(t);
+    var t = T.iframe();
+    t.render(function () {
+      document.getElementById('btn-export').addEventListener('click', function () {
+        doExport(t);
+      });
     });
   } else {
     T.initialize({
