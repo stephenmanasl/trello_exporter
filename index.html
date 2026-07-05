@@ -258,13 +258,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var btn = document.getElementById('btn-export');
     btn.disabled = true;
 
-    var boardId = '';
-    t.board('id').then(function (id) {
-      boardId = id;
-      boardUrl = 'https://trello.com/b/' + id;
-      return t.board('name');
-    }).then(function (name) {
-      boardName = name;
+    t.getContext().then(function (ctx) {
+      boardId = ctx.board;
+      boardUrl = 'https://trello.com/b/' + ctx.board;
+      return t.get('/1/boards/' + ctx.board + '?fields=name');
+    }).then(function (board) {
+      boardName = board.name;
       return t.get(buildApiUrl(boardId));
     }).then(function (cards) {
       btn.disabled = false;
@@ -281,17 +280,17 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
-  // Popup setup — attach export button handler
-  try {
-    var t = T.iframe();
-    t.render(function () {
-      var btn = document.getElementById('btn-export');
-      if (btn) btn.addEventListener('click', function () { doExport(t); });
-    });
-  } catch (e) {}
+  var isPopup = window.location.hash.indexOf('popup') !== -1 || window.location.search.indexOf('popup') !== -1;
 
-  // Connector setup — register board button
-  try {
+  if (isPopup) {
+    try {
+      var t = T.iframe();
+      t.render(function () {
+        var btn = document.getElementById('btn-export');
+        if (btn) btn.addEventListener('click', function () { doExport(t); });
+      });
+    } catch (e) {}
+  } else {
     T.initialize({
       'board-buttons': function (t) {
         return [{
@@ -311,7 +310,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }];
       }
     });
-  } catch (e) {}
+  }
 })();
 </script>
 </body>
