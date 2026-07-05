@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Board Export</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #172b4d; padding: 16px; }
+
+h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.field-group { margin-bottom: 16px; }
+.field-group label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
+.field-group label:hover { background: #f4f5f7; border-radius: 3px; margin: 0 -4px; padding: 6px 4px; }
+.field-group input[type="checkbox"] { accent-color: #0079bf; width: 16px; height: 16px; }
+
+.format-toggle { margin: 16px 0; display: flex; gap: 16px; }
+.format-toggle label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.format-toggle input[type="radio"] { accent-color: #0079bf; }
+
+.btn { display: block; width: 100%; padding: 10px; border: none; border-radius: 3px; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; }
+.btn-primary { background: #0079bf; color: #fff; }
+.btn-primary:hover { background: #026aa7; }
+.btn-primary:disabled { background: #a5adba; cursor: not-allowed; }
+
+.status { margin-top: 12px; font-size: 13px; color: #5e6c84; min-height: 20px; }
+.status.error { color: #eb5a46; }
+.status.success { color: #61bd4f; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <h2>Card Info</h2>
+  <div class="field-group">
+    <label><input type="checkbox" id="chk-name" checked> Name</label>
+    <label><input type="checkbox" id="chk-desc"> Description</label>
+    <label><input type="checkbox" id="chk-url"> URL</label>
+    <label><input type="checkbox" id="chk-pos"> Position</label>
+  </div>
+
+  <h2>Metadata</h2>
+  <div class="field-group">
+    <label><input type="checkbox" id="chk-list" checked> List Name</label>
+    <label><input type="checkbox" id="chk-due"> Due Date</label>
+    <label><input type="checkbox" id="chk-labels"> Labels</label>
+    <label><input type="checkbox" id="chk-members"> Members</label>
+  </div>
+
+  <h2>Details</h2>
+  <div class="field-group">
+    <label><input type="checkbox" id="chk-checklists"> Checklists</label>
+    <label><input type="checkbox" id="chk-comments"> Comments</label>
+    <label><input type="checkbox" id="chk-attachments"> Attachments</label>
+    <label><input type="checkbox" id="chk-activity"> Activity</label>
+  </div>
+
+  <div class="format-toggle">
+    <label><input type="radio" name="format" value="json"> JSON</label>
+    <label><input type="radio" name="format" value="csv" checked> CSV</label>
+  </div>
+
+  <button class="btn btn-primary" id="btn-export">Export</button>
+  <div class="status" id="status"></div>
+</div>
+
+<script src="https://p.trellocdn.com/power-up.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var T = window.TrelloPowerUp;
+  var boardName = '';
+  var boardUrl = '';
+
+  var FIELD_IDS = {
+    name: 'chk-name', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
+    list: 'chk-list', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
+    checklists: 'chk-checklists', comments: 'chk-comments',
+    attachments: 'chk-attachments', activity: 'chk-activity'
+  };
+
+  function isChecked(id) { return document.getElementById(FIELD_IDS[id]).checked; }
+
+  function getFormat() {
+    var radios = document.getElementsByName('format');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) return radios[i].value;
+    }
+    return 'csv';
+  }
+
+  function setStatus(text, cls) {
+    var el = document.getElementById('status');
+    el.textContent = text;
+    el.className = 'status ' + (cls || '');
+  }
+
+  function escapeCsv(value) {
+    if (value == null) return '';
+    var str = String(value).replace(/"/g, '""');
+    return '"' + str + '"';
+  }
+
+  function formatChecklist(checklists) {
+    if (!checklists || checklists.length === 0) return '';
+    return checklists.map(function (cl) {
+      return 'Checklist: ' + cl.name + '\n' + cl.checkItems.map(function (item) {
+        return '  [' + (item.state === 'complete' ? 'x' : ' ') + '] ' + item.name;
+      }).join('\n');
+    }).join('\n\n');
+  }
+
+  function isCommentAction(a) { return a.type === 'commentCard' || a.type === 'copyCommentCard'; }
+
+  function getComments(actions) {
+    if (!actions) return [];
+    return actions.filter(isCommentAction);
+  }
+
+  function getActivity(actions) {
+    if (!actions) return [];
+    return actions.filter(function (a) { return !isCommentAction(a); });
+  }
+
+  function formatComments(comments) {
+    if (!comments || comments.length === 0) return '';
+    return comments.map(function (c) {
+      var author = c.memberCreator ? c.memberCreator.fullName : 'Unknown';
+      var text = c.data && c.data.text ? c.data.text : '';
+      return author + ' (' + c.date + '): ' + text;
+    }).join('\n');
+  }
+
+  function formatAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return '';
+    return attachments.map(function (a) {
+      return a.name + ' (' + a.url + ')';
+    }).join('\n');
+  }
+
+  function formatActivity(actions) {
+    if (!actions || actions.length === 0) return '';
+    return actions.map(function (a) {
+      var member = a.memberCreator ? a.memberCreator.fullName : 'System';
+      return a.date + ' ' + member + ' ' + (a.data && a.data.card ? a.data.card.name : '') + ' — ' + a.type;
+    }).join('\n');
+  }
+
+  function buildCardData(card) {
+    var obj = {};
+    if (isChecked('name'))  obj.name = card.name;
+    if (isChecked('desc'))  obj.description = card.desc;
+    if (isChecked('url'))   obj.url = card.url;
+    if (isChecked('pos'))   obj.position = card.pos;
+    if (isChecked('list'))  obj.listName = card.list ? card.list.name : '';
+    if (isChecked('due'))   obj.dueDate = card.due || '';
+    if (isChecked('labels')) obj.labels = (card.labels || []).map(function (l) { return { name: l.name, color: l.color }; });
+    if (isChecked('members')) obj.members = (card.members || []).map(function (m) { return { fullName: m.fullName, initials: m.initials }; });
+    if (isChecked('checklists')) obj.checklists = card.checklists;
+    if (isChecked('comments'))  obj.comments = getComments(card.actions);
+    if (isChecked('attachments')) obj.attachments = card.attachments;
+    if (isChecked('activity')) obj.activity = getActivity(card.actions);
+    return obj;
+  }
+
+  function getCheckedFields() {
+    var fields = [];
+    Object.keys(FIELD_IDS).forEach(function (key) {
+      if (isChecked(key)) fields.push(key);
+    });
+    return fields;
+  }
+
+  function downloadFile(filename, content, mimeType) {
+    var blob = new Blob([content], { type: mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportJSON(cards) {
+    var checkedFields = getCheckedFields();
+    if (checkedFields.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+
+    var data = { board: { name: boardName, url: boardUrl }, exportedAt: new Date().toISOString(), cards: [] };
+    cards.forEach(function (card) { data.cards.push(buildCardData(card)); });
+
+    downloadFile('trello-export.json', JSON.stringify(data, null, 2), 'application/json');
+    setStatus('Exported ' + cards.length + ' cards as JSON.', 'success');
+  }
+
+  function exportCSV(cards) {
+    var checkedFields = getCheckedFields();
+    if (checkedFields.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+
+    var headers = [];
+    checkedFields.forEach(function (f) {
+      if (f === 'checklists') headers.push('Checklists');
+      else if (f === 'comments') headers.push('Comments');
+      else if (f === 'attachments') headers.push('Attachments');
+      else if (f === 'activity') headers.push('Activity');
+      else headers.push(f.charAt(0).toUpperCase() + f.slice(1));
+    });
+
+    var rows = [headers.map(escapeCsv).join(',')];
+
+    cards.forEach(function (card) {
+      var row = [];
+      checkedFields.forEach(function (f) {
+        var val;
+        switch (f) {
+          case 'name':  val = card.name; break;
+          case 'desc':  val = card.desc; break;
+          case 'url':   val = card.url; break;
+          case 'pos':   val = card.pos; break;
+          case 'list':  val = card.list ? card.list.name : ''; break;
+          case 'due':   val = card.due || ''; break;
+          case 'labels': val = (card.labels || []).map(function (l) { return l.name; }).join(', '); break;
+          case 'members': val = (card.members || []).map(function (m) { return m.fullName; }).join(', '); break;
+          case 'checklists': val = formatChecklist(card.checklists); break;
+          case 'comments': val = formatComments(getComments(card.actions)); break;
+          case 'attachments': val = formatAttachments(card.attachments); break;
+          case 'activity': val = formatActivity(getActivity(card.actions)); break;
+        }
+        row.push(escapeCsv(val));
+      });
+      rows.push(row.join(','));
+    });
+
+    downloadFile('trello-export.csv', '\uFEFF' + rows.join('\n'), 'text/csv;charset=utf-8');
+    setStatus('Exported ' + cards.length + ' cards as CSV.', 'success');
+  }
+
+  function buildApiUrl(boardId) {
+    var needNested = isChecked('checklists') || isChecked('comments') || isChecked('attachments') || isChecked('activity');
+    var base = '/1/boards/' + boardId + '/cards?fields=name,desc,url,pos,due&list=true&members=true&labels=all';
+    if (needNested) {
+      base += '&checklists=all&checkItems=all';
+      base += '&actions=commentCard,copyCommentCard,createCard,moveCardToBoard,moveCardFromBoard,updateCard,addLabelToCard,removeLabelFromCard,addMemberToCard,removeMemberFromCard,addAttachmentToCard,deleteAttachmentFromCard';
+      base += '&attachments=true&attachment_fields=name,url,date';
+    }
+    return base;
+  }
+
+  function doExport(t) {
+    setStatus('Loading...', '');
+    var btn = document.getElementById('btn-export');
+    btn.disabled = true;
+
+    t.board('id', 'name').then(function (b) {
+      boardName = b.name;
+      boardUrl = 'https://trello.com/b/' + b.id;
+      var url = buildApiUrl(b.id);
+      return t.get(url);
+    }).then(function (cards) {
+      btn.disabled = false;
+      if (!cards || cards.length === 0) {
+        setStatus('No cards found on this board.', 'error');
+        return;
+      }
+      var fmt = getFormat();
+      if (fmt === 'json') exportJSON(cards);
+      else exportCSV(cards);
+    }).catch(function (err) {
+      btn.disabled = false;
+      setStatus('Error: ' + (err.message || 'Failed to fetch board data.'), 'error');
+    });
+  }
+
+  T.initialize({
+    'board-buttons': function (t) {
+      return [{
+        icon: 'https://cdn-icons-png.flaticon.com/128/3580/3580165.png',
+        text: 'Export Board',
+        callback: function (t) {
+          return t.popup({
+            title: 'Export Board',
+            url: './index.html',
+            height: 540
+          });
+        }
+      }];
+    }
+  });
+
+  document.getElementById('btn-export').addEventListener('click', function () {
+    var t = T.iframe();
+    doExport(t);
+  });
+})();
+</script>
+</body>
+</html>
