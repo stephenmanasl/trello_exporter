@@ -254,11 +254,10 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var btn = document.getElementById('btn-export');
     btn.disabled = true;
 
-    t.board('id', 'name').then(function (b) {
+    t.board('id,name').then(function (b) {
       boardName = b.name;
       boardUrl = 'https://trello.com/b/' + b.id;
-      var url = buildApiUrl(b.id);
-      return t.get(url);
+      return t.get(buildApiUrl(b.id));
     }).then(function (cards) {
       btn.disabled = false;
       if (!cards || cards.length === 0) {
