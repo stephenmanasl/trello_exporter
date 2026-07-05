@@ -257,6 +257,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     setStatus('Loading...', '');
     var btn = document.getElementById('btn-export');
     btn.disabled = true;
+    var boardId = '';
 
     t.getContext().then(function (ctx) {
       boardId = ctx.board;
