@@ -107,7 +107,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function formatChecklist(checklists) {
     if (!checklists || checklists.length === 0) return '';
     return checklists.map(function (cl) {
-      return 'Checklist: ' + cl.name + '\n' + cl.checkItems.map(function (item) {
+      return 'Checklist: ' + cl.name + '\n' + (cl.checkItems || []).map(function (item) {
         return '  [' + (item.state === 'complete' ? 'x' : ' ') + '] ' + item.name;
       }).join('\n');
     }).join('\n\n');
@@ -141,11 +141,25 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     }).join('\n');
   }
 
+  var ACTION_TEXT = {
+    createCard: 'created this card',
+    updateCard: 'updated this card',
+    moveCardToBoard: 'moved this card to the board',
+    moveCardFromBoard: 'moved this card from the board',
+    addLabelToCard: 'added a label',
+    removeLabelFromCard: 'removed a label',
+    addMemberToCard: 'added a member',
+    removeMemberFromCard: 'removed a member',
+    addAttachmentToCard: 'added an attachment',
+    deleteAttachmentFromCard: 'deleted an attachment'
+  };
+
   function formatActivity(actions) {
     if (!actions || actions.length === 0) return '';
     return actions.map(function (a) {
       var member = a.memberCreator ? a.memberCreator.fullName : 'System';
-      return a.date + ' ' + member + ' ' + (a.data && a.data.card ? a.data.card.name : '') + ' — ' + a.type;
+      var text = ACTION_TEXT[a.type] || a.type;
+      return a.date + ' ' + member + ' ' + text;
     }).join('\n');
   }
 
@@ -160,10 +174,18 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     if (isChecked('due'))   obj.dueDate = card.due || '';
     if (isChecked('labels')) obj.labels = (card.labels || []).map(function (l) { return { name: l.name, color: l.color }; });
     if (isChecked('members')) obj.members = (card.members || []).map(function (m) { return { fullName: m.fullName, initials: m.initials }; });
-    if (isChecked('checklists')) obj.checklists = card.checklists;
-    if (isChecked('comments'))  obj.comments = getComments(card.actions);
-    if (isChecked('attachments')) obj.attachments = card.attachments;
-    if (isChecked('activity')) obj.activity = getActivity(card.actions);
+    if (isChecked('checklists')) obj.checklists = (card.checklists || []).map(function (cl) {
+      return { name: cl.name, items: (cl.checkItems || []).map(function (item) { return { name: item.name, state: item.state }; }) };
+    });
+    if (isChecked('comments'))  obj.comments = getComments(card.actions).map(function (c) {
+      return { text: c.data && c.data.text ? c.data.text : '', memberCreator: c.memberCreator ? c.memberCreator.fullName : 'Unknown', date: c.date };
+    });
+    if (isChecked('attachments')) obj.attachments = (card.attachments || []).map(function (a) {
+      return { name: a.name, url: a.url, date: a.date };
+    });
+    if (isChecked('activity')) obj.activity = getActivity(card.actions).map(function (a) {
+      return { type: a.type, date: a.date, memberCreator: a.memberCreator ? a.memberCreator.fullName : 'System', text: a.data && a.data.text ? a.data.text : (a.data && a.data.card ? a.data.card.name : '') };
+    });
     return obj;
   }
 
@@ -191,7 +213,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var checkedFields = getCheckedFields();
     if (checkedFields.length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
-    var data = { board: { name: boardName, url: boardUrl }, exportedAt: new Date().toISOString(), cards: [] };
+    var data = { board: { name: boardName, url: boardUrl, exportedAt: new Date().toISOString() }, cards: [] };
     cards.forEach(function (card) { data.cards.push(buildCardData(card)); });
 
     downloadFile('trello-export.json', JSON.stringify(data, null, 2), 'application/json');
@@ -277,8 +299,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       step = 'getCards_done';
       btn.disabled = false;
       if (!cards || cards.length === 0) {
-        setStatus('No cards found on this board.', 'error');
-        return;
+        setStatus('No cards found on this board. Exporting empty file.', '');
+        cards = [];
       }
       var fmt = getFormat();
       if (fmt === 'json') exportJSON(cards);
@@ -310,7 +332,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           },
           text: 'Export Board',
           condition: 'always',
-              callback: function (t) {
+          callback: function (t) {
             return t.popup({
               title: 'Export Board',
               url: './index.html?popup=1',
