@@ -258,15 +258,23 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var btn = document.getElementById('btn-export');
     btn.disabled = true;
     var boardId = '';
+    var step = 'getContext';
 
     t.getContext().then(function (ctx) {
+      step = 'getContext_done';
+      setStatus('Context: board=' + ctx.board, '');
       boardId = ctx.board;
       boardUrl = 'https://trello.com/b/' + ctx.board;
+      step = 'getBoard';
       return t.get('/1/boards/' + ctx.board + '?fields=name');
     }).then(function (board) {
+      step = 'getBoard_done';
+      setStatus('Board: ' + board.name, '');
       boardName = board.name;
+      step = 'getCards';
       return t.get(buildApiUrl(boardId));
     }).then(function (cards) {
+      step = 'getCards_done';
       btn.disabled = false;
       if (!cards || cards.length === 0) {
         setStatus('No cards found on this board.', 'error');
@@ -277,7 +285,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       else exportCSV(cards);
     }).catch(function (err) {
       btn.disabled = false;
-      setStatus('Export failed: ' + (err && (err.message || err.statusText || JSON.stringify(err)) || 'unknown error'), 'error');
+      var msg = err && (err.message || err.statusText || err) || 'unknown error';
+      setStatus('Export failed (step=' + step + '): ' + msg, 'error');
     });
   }
 
@@ -301,10 +310,10 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           },
           text: 'Export Board',
           condition: 'always',
-          callback: function (t) {
+              callback: function (t) {
             return t.popup({
               title: 'Export Board',
-              url: './index.html#popup',
+              url: './index.html?popup=1',
               height: 640
             });
           }
