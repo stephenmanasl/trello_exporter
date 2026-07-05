@@ -254,10 +254,14 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var btn = document.getElementById('btn-export');
     btn.disabled = true;
 
-    t.board('id,name').then(function (b) {
-      boardName = b.name;
-      boardUrl = 'https://trello.com/b/' + b.id;
-      return t.get(buildApiUrl(b.id));
+    var boardId = '';
+    t.board('id').then(function (id) {
+      boardId = id;
+      boardUrl = 'https://trello.com/b/' + id;
+      return t.board('name');
+    }).then(function (name) {
+      boardName = name;
+      return t.get(buildApiUrl(boardId));
     }).then(function (cards) {
       btn.disabled = false;
       if (!cards || cards.length === 0) {
@@ -269,7 +273,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       else exportCSV(cards);
     }).catch(function (err) {
       btn.disabled = false;
-      setStatus('Error: ' + (err.message || 'Failed to fetch board data.'), 'error');
+      setStatus('Export failed: ' + (err && (err.message || err.statusText || JSON.stringify(err)) || 'unknown error'), 'error');
     });
   }
 
