@@ -273,30 +273,32 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
-  T.initialize({
-    'board-buttons': function (t) {
-      return [{
-        icon: {
-          dark: 'https://stephenmanasl.github.io/trello_exporter/icon.svg',
-          light: 'https://stephenmanasl.github.io/trello_exporter/icon.svg'
-        },
-        text: 'Export Board',
-        condition: 'always',
-        callback: function (t) {
-          return t.popup({
-            title: 'Export Board',
-            url: './index.html',
-            height: 640
-          });
-        }
-      }];
-    }
-  });
-
-  document.getElementById('btn-export').addEventListener('click', function () {
-    var t = T.iframe();
-    doExport(t);
-  });
+  if (window.location.hash === '#popup') {
+    document.getElementById('btn-export').addEventListener('click', function () {
+      var t = T.iframe();
+      doExport(t);
+    });
+  } else {
+    T.initialize({
+      'board-buttons': function (t) {
+        return [{
+          icon: {
+            dark: 'https://stephenmanasl.github.io/trello_exporter/icon.svg',
+            light: 'https://stephenmanasl.github.io/trello_exporter/icon.svg'
+          },
+          text: 'Export Board',
+          condition: 'always',
+          callback: function (t) {
+            return t.popup({
+              title: 'Export Board',
+              url: './index.html#popup',
+              height: 640
+            });
+          }
+        }];
+      }
+    });
+  }
 })();
 </script>
 </body>
