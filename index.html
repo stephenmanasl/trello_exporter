@@ -276,40 +276,45 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   }
 
   function doExport(t) {
-    setStatus('Loading...', '');
     var btn = document.getElementById('btn-export');
-    btn.disabled = true;
-    var boardId = '';
-    var step = 'getContext';
+    var step = 'init';
+    try {
+      setStatus('Loading...', '');
+      btn.disabled = true;
+      var boardId = '';
 
-    t.getContext().then(function (ctx) {
+      step = 'getContext';
+      var ctx = t.getContext();
       step = 'getContext_done';
-      setStatus('Context: board=' + ctx.board, '');
+      setStatus('Context: board=' + (ctx && ctx.board), '');
       boardId = ctx.board;
       boardUrl = 'https://trello.com/b/' + ctx.board;
       step = 'getBoard';
-      return t.get('/1/boards/' + ctx.board + '?fields=name');
-    }).then(function (board) {
-      step = 'getBoard_done';
-      setStatus('Board: ' + board.name, '');
-      boardName = board.name;
-      step = 'getCards';
-      return t.get(buildApiUrl(boardId));
-    }).then(function (cards) {
-      step = 'getCards_done';
-      btn.disabled = false;
-      if (!cards || cards.length === 0) {
-        setStatus('No cards found on this board. Exporting empty file.', '');
-        cards = [];
-      }
-      var fmt = getFormat();
-      if (fmt === 'json') exportJSON(cards);
-      else exportCSV(cards);
-    }).catch(function (err) {
-      btn.disabled = false;
-      var msg = err && (err.message || err.statusText || err) || 'unknown error';
-      setStatus('Export failed (step=' + step + '): ' + msg, 'error');
-    });
+      t.get('/1/boards/' + ctx.board + '?fields=name').then(function (board) {
+        step = 'getBoard_done';
+        setStatus('Board: ' + board.name, '');
+        boardName = board.name;
+        step = 'getCards';
+        return t.get(buildApiUrl(boardId));
+      }).then(function (cards) {
+        step = 'getCards_done';
+        btn.disabled = false;
+        if (!cards || cards.length === 0) {
+          setStatus('No cards found on this board. Exporting empty file.', '');
+          cards = [];
+        }
+        var fmt = getFormat();
+        if (fmt === 'json') exportJSON(cards);
+        else exportCSV(cards);
+      }).catch(function (err) {
+        btn.disabled = false;
+        var msg = err && (err.message || err.statusText || err) || 'unknown error';
+        setStatus('Export failed (step=' + step + '): ' + msg, 'error');
+      });
+    } catch (e) {
+      if (btn) btn.disabled = false;
+      setStatus('Export failed (sync, step=' + step + '): ' + (e && (e.message || e) || 'unknown error'), 'error');
+    }
   }
 
   var isPopup = window.location.hash.indexOf('popup') !== -1 || window.location.search.indexOf('popup') !== -1;
@@ -335,7 +340,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           callback: function (t) {
             return t.popup({
               title: 'Export Board',
-              url: './index.html?popup=1',
+              url: t.signUrl('./index.html?popup=1'),
               height: 640
             });
           }
