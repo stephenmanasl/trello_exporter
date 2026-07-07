@@ -350,9 +350,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       var t = T.iframe({ appKey: APP_KEY, appName: 'Board Export', appAuthor: 'Trello Export' });
       t.render(function () {
         var btn = document.getElementById('btn-export');
-        if (btn) btn.addEventListener('click', function () { doExport(t); });
+        if (btn) btn.onclick = function () { doExport(t); };
         var authBtn = document.getElementById('btn-authorize');
-        if (authBtn) authBtn.addEventListener('click', function () {
+        if (authBtn) authBtn.onclick = function () {
           setStatus('Authorizing...', '');
           authBtn.disabled = true;
           t.getRestApi().authorize({ scope: 'read' }).then(function () {
