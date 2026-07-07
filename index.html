@@ -32,6 +32,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 <body>
 
 <div id="app">
+  <div id="auth-section" style="display:none; text-align:center; padding:20px 0;">
+    <p style="margin-bottom:12px; font-size:14px;">Authorize Board Export to access your Trello board data.</p>
+    <button class="btn btn-primary" id="btn-authorize">Authorize</button>
+  </div>
+  <div id="export-section">
   <h2>Card Info</h2>
   <div class="field-group">
     <label><input type="checkbox" id="chk-name" checked> Name</label>
@@ -63,6 +68,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   </div>
 
   <button class="btn btn-primary" id="btn-export">Export</button>
+  </div>
   <div class="status" id="status"></div>
 </div>
 
@@ -72,8 +78,18 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   'use strict';
 
   var T = window.TrelloPowerUp;
+  var APP_KEY = '6da32fb6fef73452b529a029b125e2a7';
   var boardName = '';
   var boardUrl = '';
+
+  function trelloFetch(path, token) {
+    var sep = path.indexOf('?') !== -1 ? '&' : '?';
+    var url = 'https://api.trello.com' + path + sep + 'key=' + APP_KEY + '&token=' + token;
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
 
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
@@ -278,25 +294,35 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function doExport(t) {
     var btn = document.getElementById('btn-export');
     var step = 'init';
+    var token = null;
     try {
       setStatus('Loading...', '');
       btn.disabled = true;
-      var boardId = '';
 
       step = 'getContext';
       var ctx = t.getContext();
-      step = 'getContext_done';
-      setStatus('Context: board=' + (ctx && ctx.board), '');
-      boardId = ctx.board;
+      var boardId = ctx.board;
       boardUrl = 'https://trello.com/b/' + ctx.board;
-      step = 'getBoard';
-      t.get('/1/boards/' + ctx.board + '?fields=name').then(function (board) {
+
+      step = 'getToken';
+      t.getRestApi().getToken().then(function (tok) {
+        token = tok;
+        if (!token) {
+          btn.disabled = false;
+          setStatus('Not authorized. Click Authorize first.', 'error');
+          return null;
+        }
+        step = 'getBoard';
+        return trelloFetch('/1/boards/' + boardId + '?fields=name', token);
+      }).then(function (board) {
+        if (!board) return null;
         step = 'getBoard_done';
         setStatus('Board: ' + board.name, '');
         boardName = board.name;
         step = 'getCards';
-        return t.get(buildApiUrl(boardId));
+        return trelloFetch(buildApiUrl(boardId), token);
       }).then(function (cards) {
+        if (!cards) return;
         step = 'getCards_done';
         btn.disabled = false;
         if (!cards || cards.length === 0) {
@@ -321,10 +347,33 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   if (isPopup) {
     try {
-      var t = T.iframe();
+      var t = T.iframe({ appKey: APP_KEY, appName: 'Board Export', appAuthor: 'Trello Export' });
       t.render(function () {
         var btn = document.getElementById('btn-export');
         if (btn) btn.addEventListener('click', function () { doExport(t); });
+        var authBtn = document.getElementById('btn-authorize');
+        if (authBtn) authBtn.addEventListener('click', function () {
+          setStatus('Authorizing...', '');
+          authBtn.disabled = true;
+          t.getRestApi().authorize({ scope: 'read' }).then(function () {
+            authBtn.disabled = false;
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('export-section').style.display = 'block';
+            setStatus('Authorized! Click Export to continue.', '');
+          }).catch(function (err) {
+            authBtn.disabled = false;
+            setStatus('Authorization failed: ' + (err && (err.message || err) || 'unknown error'), 'error');
+          });
+        });
+        t.getRestApi().isAuthorized().then(function (authed) {
+          if (authed) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('export-section').style.display = 'block';
+          } else {
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('export-section').style.display = 'none';
+          }
+        });
       });
     } catch (e) {}
   } else {
