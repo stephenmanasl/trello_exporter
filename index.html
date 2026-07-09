@@ -81,6 +81,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   var APP_KEY = '6da32fb6fef73452b529a029b125e2a7';
   var boardName = '';
   var boardUrl = '';
+  var customFieldDefs = null;
 
   function trelloFetch(path, token) {
     var sep = path.indexOf('?') !== -1 ? '&' : '?';
@@ -89,6 +90,21 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     });
+  }
+
+  function checkCustomFields(t) {
+    t.getRestApi().getToken().then(function (token) {
+      if (!token) return;
+      var ctx = t.getContext();
+      return trelloFetch('/1/boards/' + ctx.board + '/customFields', token);
+    }).then(function (fields) {
+      if (!fields) return;
+      customFieldDefs = fields;
+      if (fields.length > 0) {
+        var names = fields.map(function (f) { return f.display.name; }).join(', ');
+        setStatus('Custom fields detected: ' + names, 'success');
+      }
+    }).catch(function () {});
   }
 
   var FIELD_IDS = {
@@ -359,6 +375,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             authBtn.disabled = false;
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
+            checkCustomFields(t);
             setStatus('Authorized! Click Export to continue.', '');
           }).catch(function (err) {
             authBtn.disabled = false;
@@ -369,6 +386,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           if (authed) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
+            checkCustomFields(t);
           } else {
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('export-section').style.display = 'none';
