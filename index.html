@@ -336,7 +336,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           case 'pos':   val = card.pos; break;
           case 'list':  val = card.list ? card.list.name : ''; break;
           case 'due':   val = card.due || ''; break;
-          case 'labels': val = (card.labels || []).map(function (l) { return l.name; }).join(', '); break;
+          case 'labels': val = (card.labels || []).map(function (l) { return l.name || l.color; }).join(', '); break;
           case 'members': val = (card.members || []).map(function (m) { return m.fullName; }).join(', '); break;
           case 'checklists': val = formatChecklist(card.checklists); break;
           case 'comments': val = formatComments(getComments(card.actions)); break;
