@@ -357,7 +357,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function buildApiUrl(boardId) {
     var needNested = isChecked('checklists') || isChecked('comments') || isChecked('attachments') || isChecked('activity');
-    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due&list=true&members=true&labels=all&customFieldItems=true';
+    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due,labels&list=true&members=true&labels=all&customFieldItems=true';
     if (needNested) {
       base += '&checklists=all&checkItems=all';
       base += '&actions=commentCard,copyCommentCard,createCard,moveCardToBoard,moveCardFromBoard,updateCard,addLabelToCard,removeLabelFromCard,addMemberToCard,removeMemberFromCard,addAttachmentToCard,deleteAttachmentFromCard';
@@ -403,12 +403,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         if (!cards || cards.length === 0) {
           setStatus('No cards found on this board. Exporting empty file.', '');
           cards = [];
-        }
-        if (cards.length > 0) {
-          var c0 = cards[0];
-          var labelInfo = (c0.labels || []).map(function (l) { return JSON.stringify(l); }).join(' | ');
-          setStatus('Debug - card "' + c0.name + '" labels: ' + (labelInfo || '(none)'), '');
-          return;
         }
         var fmt = getFormat();
         if (fmt === 'json') exportJSON(cards);

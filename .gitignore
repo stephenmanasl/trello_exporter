@@ -1,3 +1,5 @@
 docs/
 SETUP.md
 .secret
+AGENTS.md
+trello-swagger.json
