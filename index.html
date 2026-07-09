@@ -404,6 +404,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           setStatus('No cards found on this board. Exporting empty file.', '');
           cards = [];
         }
+        if (cards.length > 0) {
+          var c0 = cards[0];
+          var labelInfo = (c0.labels || []).map(function (l) { return JSON.stringify(l); }).join(' | ');
+          setStatus('Debug - card "' + c0.name + '" labels: ' + (labelInfo || '(none)'), '');
+          return;
+        }
         var fmt = getFormat();
         if (fmt === 'json') exportJSON(cards);
         else exportCSV(cards);
