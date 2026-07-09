@@ -157,7 +157,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
-    list: 'chk-list', due: 'chk-due', start: 'chk-start', labels: 'chk-labels', members: 'chk-members',
+    list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
     checklists: 'chk-checklists', comments: 'chk-comments',
     attachments: 'chk-attachments', activity: 'chk-activity'
   };
@@ -251,8 +251,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     if (isChecked('url'))   obj.url = card.url;
     if (isChecked('pos'))   obj.position = card.pos;
     if (isChecked('list'))  obj.listName = card.list ? card.list.name : '';
-    if (isChecked('due'))   obj.dueDate = card.due || '';
     if (isChecked('start')) obj.startDate = card.start || '';
+    if (isChecked('due'))   obj.dueDate = card.due || '';
     if (isChecked('labels')) obj.labels = (card.labels || []).map(function (l) { return { name: l.name, color: l.color }; });
     if (isChecked('members')) obj.members = (card.members || []).map(function (m) { return { fullName: m.fullName, initials: m.initials }; });
     if (isChecked('checklists')) obj.checklists = (card.checklists || []).map(function (cl) {
@@ -337,8 +337,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           case 'url':   val = card.url; break;
           case 'pos':   val = card.pos; break;
           case 'list':  val = card.list ? card.list.name : ''; break;
-          case 'due':   val = card.due || ''; break;
           case 'start': val = card.start || ''; break;
+          case 'due':   val = card.due || ''; break;
           case 'labels': val = (card.labels || []).map(function (l) { return l.name || l.color; }).join(', '); break;
           case 'members': val = (card.members || []).map(function (m) { return m.fullName; }).join(', '); break;
           case 'checklists': val = formatChecklist(card.checklists); break;
