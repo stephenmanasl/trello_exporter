@@ -62,6 +62,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     <label><input type="checkbox" id="chk-activity"> Activity</label>
   </div>
 
+  <div id="custom-fields-section" style="display:none;">
+    <h2>Custom Fields</h2>
+    <div class="field-group" id="custom-fields-container"></div>
+  </div>
+
   <div class="format-toggle">
     <label><input type="radio" name="format" value="json"> JSON</label>
     <label><input type="radio" name="format" value="csv" checked> CSV</label>
@@ -92,6 +97,39 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
+  function getCustomFieldDisplayValue(card, def) {
+    var items = card.customFieldItems || [];
+    var item = null;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].idCustomField === def.id) { item = items[i]; break; }
+    }
+    if (!item || !item.value) return '';
+    switch (def.type) {
+      case 'text': return item.value.text || '';
+      case 'number': return item.value.number || '';
+      case 'date': return item.value.date || '';
+      case 'checkbox': return item.value.checked === 'true' ? 'Yes' : 'No';
+      case 'list':
+        var optId = item.value.id;
+        var opts = def.display.options || [];
+        for (var j = 0; j < opts.length; j++) {
+          if (opts[j].id === optId) return opts[j].value.text || '';
+        }
+        return '';
+      default: return '';
+    }
+  }
+
+  function getCheckedCustomFieldDefs() {
+    var checked = [];
+    if (!customFieldDefs) return checked;
+    for (var i = 0; i < customFieldDefs.length; i++) {
+      var el = document.getElementById('chk-cf-' + i);
+      if (el && el.checked) checked.push(customFieldDefs[i]);
+    }
+    return checked;
+  }
+
   function checkCustomFields(t) {
     t.getRestApi().getToken().then(function (token) {
       if (!token) return;
@@ -101,8 +139,17 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       if (!fields) return;
       customFieldDefs = fields;
       if (fields.length > 0) {
-        var names = fields.map(function (f) { return f.display.name; }).join(', ');
-        setStatus('Custom fields detected: ' + names, 'success');
+        var section = document.getElementById('custom-fields-section');
+        if (section) section.style.display = 'block';
+        var container = document.getElementById('custom-fields-container');
+        if (container) {
+          for (var i = 0; i < fields.length; i++) {
+            var id = 'chk-cf-' + i;
+            var label = document.createElement('label');
+            label.innerHTML = '<input type="checkbox" id="' + id + '"> ' + fields[i].display.name;
+            container.appendChild(label);
+          }
+        }
       }
     }).catch(function () {});
   }
@@ -218,6 +265,10 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     if (isChecked('activity')) obj.activity = getActivity(card.actions).map(function (a) {
       return { type: a.type, date: a.date, memberCreator: a.memberCreator ? a.memberCreator.fullName : 'System', text: a.data && a.data.text ? a.data.text : (a.data && a.data.card ? a.data.card.name : '') };
     });
+    var cfDefs = getCheckedCustomFieldDefs();
+    for (var ci = 0; ci < cfDefs.length; ci++) {
+      obj[cfDefs[ci].display.name] = getCustomFieldDisplayValue(card, cfDefs[ci]);
+    }
     return obj;
   }
 
@@ -243,7 +294,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function exportJSON(cards) {
     var checkedFields = getCheckedFields();
-    if (checkedFields.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+    var cfDefs = getCheckedCustomFieldDefs();
+    if (checkedFields.length === 0 && cfDefs.length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
     var data = { board: { name: boardName, url: boardUrl, exportedAt: new Date().toISOString() }, cards: [] };
     cards.forEach(function (card) { data.cards.push(buildCardData(card)); });
@@ -254,7 +306,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function exportCSV(cards) {
     var checkedFields = getCheckedFields();
-    if (checkedFields.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+    var cfDefs = getCheckedCustomFieldDefs();
+    if (checkedFields.length === 0 && cfDefs.length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
     var headers = [];
     checkedFields.forEach(function (f) {
@@ -265,6 +318,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       else if (f === 'activity') headers.push('Activity');
       else headers.push(f.charAt(0).toUpperCase() + f.slice(1));
     });
+    for (var cfi = 0; cfi < cfDefs.length; cfi++) {
+      headers.push(cfDefs[cfi].display.name);
+    }
 
     var rows = [headers.map(escapeCsv).join(',')];
 
@@ -289,6 +345,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }
         row.push(escapeCsv(val));
       });
+      for (var cfj = 0; cfj < cfDefs.length; cfj++) {
+        row.push(escapeCsv(getCustomFieldDisplayValue(card, cfDefs[cfj])));
+      }
       rows.push(row.join(','));
     });
 
@@ -298,7 +357,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function buildApiUrl(boardId) {
     var needNested = isChecked('checklists') || isChecked('comments') || isChecked('attachments') || isChecked('activity');
-    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due&list=true&members=true&labels=all';
+    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due&list=true&members=true&labels=all&customFieldItems=true';
     if (needNested) {
       base += '&checklists=all&checkItems=all';
       base += '&actions=commentCard,copyCommentCard,createCard,moveCardToBoard,moveCardFromBoard,updateCard,addLabelToCard,removeLabelFromCard,addMemberToCard,removeMemberFromCard,addAttachmentToCard,deleteAttachmentFromCard';
