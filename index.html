@@ -268,34 +268,31 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var container = document.getElementById('cf-settings-container');
     if (!container) return;
     container.innerHTML = '';
-    var fieldset = document.createElement('fieldset');
-    fieldset.style.cssText = 'border:1px solid #dfe1e6;border-radius:3px;padding:8px;margin:0 0 8px;';
-    var legend = document.createElement('legend');
-    legend.textContent = 'Field Definitions';
-    legend.style.cssText = 'font-size:12px;color:#5e6c84;padding:0 4px;';
-    fieldset.appendChild(legend);
     var defs = getFreeFieldDefs();
     for (var i = 0; i < defs.length; i++) {
       var def = defs[i];
-      var row = document.createElement('div');
-      row.style.cssText = 'margin-bottom:8px;';
+      var fieldset = document.createElement('fieldset');
+      fieldset.style.cssText = 'border:1px solid #dfe1e6;border-radius:3px;padding:8px;margin:0 0 8px;';
+      var legend = document.createElement('legend');
+      legend.textContent = def.name;
+      legend.style.cssText = 'font-size:12px;color:#5e6c84;padding:0 4px;';
+      fieldset.appendChild(legend);
       var nameInput = document.createElement('input');
       nameInput.type = 'text';
       nameInput.value = def.name;
       nameInput.id = 'cfg-name-' + i;
       nameInput.style.cssText = 'width:100%;padding:6px;';
-      row.appendChild(nameInput);
+      fieldset.appendChild(nameInput);
       if (def.type === 'select') {
         var optsInput = document.createElement('input');
         optsInput.type = 'text';
         optsInput.value = (def.options || []).join(', ');
         optsInput.id = 'cfg-options-' + i;
         optsInput.style.cssText = 'width:100%;padding:6px;margin-top:4px;';
-        row.appendChild(optsInput);
+        fieldset.appendChild(optsInput);
       }
-      fieldset.appendChild(row);
+      container.appendChild(fieldset);
     }
-    container.appendChild(fieldset);
   }
 
   function collectSettings() {
