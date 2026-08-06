@@ -115,9 +115,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   var DEFAULT_FIELD_DEFS = [
     { id: 'f1', name: 'Priority', type: 'select', options: ['Top/Critical', 'High', 'Medium', 'Low'] },
     { id: 'f2', name: 'Problem Type', type: 'select', options: ['Documentation', 'Request Changes', 'Cosmetics', 'Design', 'Coding', 'Clarifications', 'Environment'] },
-    { id: 'f3', name: 'Assignee', type: 'text', options: [] },
-    { id: 'f4', name: 'Ticket Number', type: 'text', options: [] },
-    { id: 'f5', name: 'Notes', type: 'text', options: [] }
+    { id: 'f3', name: 'Notes', type: 'text', options: [] }
   ];
 
   function trelloFetch(path, token) {
@@ -234,7 +232,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
-      if (Array.isArray(defs) && defs.length === 5) {
+      if (Array.isArray(defs) && defs.length === 3) {
         freeFieldDefs = defs;
       } else {
         freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
