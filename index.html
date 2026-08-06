@@ -329,6 +329,99 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return chunk(0);
   }
 
+  function setEditStatus(text, cls) {
+    var el = document.getElementById('edit-status');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status ' + (cls || '');
+  }
+
+  function initEdit(t) {
+    var ctx = t.getContext();
+    var cardId = ctx.card;
+    document.getElementById('export-section').style.display = 'none';
+    document.getElementById('edit-section').style.display = 'block';
+    t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
+      if (!Array.isArray(defs) || defs.length === 0) {
+        setEditStatus('Configure fields first in the Export Board popup.', 'error');
+        return null;
+      }
+      return t.get(cardId, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
+        renderEditForm(t, cardId, defs, values || {});
+      });
+    }).catch(function () {
+      setEditStatus('Could not load custom field definitions.', 'error');
+    });
+  }
+
+  function renderEditForm(t, cardId, defs, values) {
+    var container = document.getElementById('edit-form-container');
+    if (!container) return;
+    container.innerHTML = '';
+    for (var i = 0; i < defs.length; i++) {
+      var def = defs[i];
+      var row = document.createElement('label');
+      row.style.cssText = 'display:block;padding:6px 0;font-size:14px;';
+      row.appendChild(document.createTextNode(def.name + ': '));
+      var current = values[def.id] || '';
+      var input;
+      if (def.type === 'select') {
+        input = document.createElement('select');
+        input.id = 'edit-free-' + i;
+        var none = document.createElement('option');
+        none.value = '';
+        none.textContent = '(none)';
+        input.appendChild(none);
+        (def.options || []).forEach(function (opt) {
+          var o = document.createElement('option');
+          o.value = opt;
+          o.textContent = opt;
+          if (opt === current) o.selected = true;
+          input.appendChild(o);
+        });
+      } else {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'edit-free-' + i;
+        input.value = current;
+        input.style.cssText = 'width:100%;padding:6px;';
+      }
+      row.appendChild(input);
+      container.appendChild(row);
+    }
+    var saveBtn = document.getElementById('btn-save-free');
+    if (!saveBtn) return;
+    saveBtn.disabled = false;
+    saveBtn.onclick = function () {
+      var valuesOut = {};
+      for (var j = 0; j < defs.length; j++) {
+        var el = document.getElementById('edit-free-' + j);
+        var v = el ? el.value.trim() : '';
+        if (v !== '') valuesOut[defs[j].id] = v;
+      }
+      saveBtn.disabled = true;
+      setEditStatus('Saving...', '');
+      doEditSave(t, cardId, valuesOut, saveBtn);
+    };
+  }
+
+  function doEditSave(t, cardId, values, saveBtn) {
+    t.set('card', 'shared', FREE_VALUES_KEY, values).then(function () {
+      t.closePopup();
+    }).catch(function () {
+      saveBtn.disabled = true;
+      setEditStatus('Save failed. Re-authorize to enable editing.', 'error');
+      t.getRestApi().authorize({ scope: 'write' }).then(function () {
+        return t.set('card', 'shared', FREE_VALUES_KEY, values);
+      }).then(function () {
+        t.closePopup();
+      }).catch(function (err) {
+        saveBtn.disabled = false;
+        setEditStatus('Save failed: ' + (err && (err.message || err) || 'unknown error'), 'error');
+      });
+    });
+  }
+
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
@@ -624,6 +717,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     try {
       var t = T.iframe({ appKey: APP_KEY, appName: 'Board Export', appAuthor: 'Trello Export' });
       t.render(function () {
+        if (isEdit) { initEdit(t); return; }
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
         wireSectionToggles();
@@ -683,6 +777,20 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
               title: 'Export Board',
               url: t.signUrl('./index.html?popup=1'),
               height: 640
+            });
+          }
+        }];
+      },
+      'card-buttons': function (t) {
+        return [{
+          icon: 'https://stephenmanasl.github.io/trello_exporter/icon.svg',
+          text: 'Custom Fields',
+          condition: 'edit',
+          callback: function (t) {
+            return t.popup({
+              title: 'Custom Fields',
+              url: t.signUrl('./index.html?popup=1&edit=1'),
+              height: 400
             });
           }
         }];
