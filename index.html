@@ -344,13 +344,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var cardId = ctx.card;
     document.getElementById('export-section').style.display = 'none';
     document.getElementById('edit-section').style.display = 'block';
-    t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
-      if (!Array.isArray(defs) || defs.length === 0) {
-        setEditStatus('Configure fields first in the Export Board popup.', 'error');
-        return null;
-      }
+    loadFreeFieldDefs(t).then(function () {
       return t.get(cardId, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
-        renderEditForm(t, cardId, defs, values || {});
+        renderEditForm(t, cardId, getFreeFieldDefs(), values || {});
       });
     }).catch(function () {
       setEditStatus('Could not load custom field definitions.', 'error');
@@ -808,14 +804,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }];
       },
       'card-badges': function (t, card) {
-        var defsPromise = t.get('board', 'shared', FREE_DEFS_KEY).catch(function () { return null; });
         return Promise.resolve(card).then(function (c) {
           return t.get(c.id, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
             return { card: c, values: values || {} };
           });
         }).then(function (data) {
-          return defsPromise.then(function (defs) {
-            if (!Array.isArray(defs) || defs.length === 0) return [];
+          return loadFreeFieldDefs(t).then(function () {
+            var defs = getFreeFieldDefs();
             var badges = [];
             for (var i = 0; i < defs.length; i++) {
               var def = defs[i];
