@@ -70,6 +70,22 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     <div class="field-group" id="custom-fields-container" data-section="selall-customfields"></div>
   </div>
 
+  <h2><label class="section-toggle"><input type="checkbox" id="selall-freecustomfields"> Free Custom Fields</label></h2>
+  <div class="field-group" data-section="selall-freecustomfields" id="free-custom-fields-container"></div>
+
+  <details id="cf-settings" style="margin-bottom:16px;">
+    <summary style="font-size:13px; color:#5e6c84; cursor:pointer;">Custom Fields Settings</summary>
+    <div id="cf-settings-container"></div>
+    <button class="btn btn-primary" id="btn-save-fields" type="button">Save Field Definitions</button>
+  </details>
+
+  <div id="edit-section" style="display:none;">
+    <h2 id="edit-title">Custom Fields</h2>
+    <div class="field-group" id="edit-form-container"></div>
+    <button class="btn btn-primary" id="btn-save-free">Save</button>
+    <div class="status" id="edit-status"></div>
+  </div>
+
   <div class="format-toggle">
     <label><input type="radio" name="format" value="json"> JSON</label>
     <label><input type="radio" name="format" value="csv" checked> CSV</label>
