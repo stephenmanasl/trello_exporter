@@ -248,6 +248,73 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return t.set('board', 'shared', FREE_DEFS_KEY, defs);
   }
 
+  function renderFreeCustomFields(t) {
+    return loadFreeFieldDefs(t).then(function () {
+      var container = document.getElementById('free-custom-fields-container');
+      if (!container) return;
+      container.innerHTML = '';
+      var defs = getFreeFieldDefs();
+      for (var i = 0; i < defs.length; i++) {
+        var id = 'chk-free-' + i;
+        var label = document.createElement('label');
+        label.innerHTML = '<input type="checkbox" id="' + id + '"> ' + defs[i].name;
+        container.appendChild(label);
+      }
+      syncSectionToggle('selall-freecustomfields');
+    });
+  }
+
+  function renderSettings() {
+    var container = document.getElementById('cf-settings-container');
+    if (!container) return;
+    container.innerHTML = '';
+    var defs = getFreeFieldDefs();
+    for (var i = 0; i < defs.length; i++) {
+      var def = defs[i];
+      var row = document.createElement('div');
+      row.style.cssText = 'margin-bottom:8px;';
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = def.name;
+      nameInput.id = 'cfg-name-' + i;
+      nameInput.style.cssText = 'width:100%;padding:6px;';
+      row.appendChild(nameInput);
+      if (def.type === 'select') {
+        var optsInput = document.createElement('input');
+        optsInput.type = 'text';
+        optsInput.value = (def.options || []).join(', ');
+        optsInput.id = 'cfg-options-' + i;
+        optsInput.style.cssText = 'width:100%;padding:6px;margin-top:4px;';
+        row.appendChild(optsInput);
+      }
+      container.appendChild(row);
+    }
+  }
+
+  function collectSettings() {
+    var defs = [];
+    var base = getFreeFieldDefs();
+    for (var i = 0; i < base.length; i++) {
+      var def = { id: 'f' + (i + 1), name: document.getElementById('cfg-name-' + i).value.trim(), type: base[i].type, options: [] };
+      if (def.type === 'select') {
+        var optsEl = document.getElementById('cfg-options-' + i);
+        def.options = (optsEl ? optsEl.value : '').split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+      }
+      defs.push(def);
+    }
+    return defs;
+  }
+
+  function getCheckedFreeFieldDefs() {
+    var defs = getFreeFieldDefs();
+    var checked = [];
+    for (var i = 0; i < defs.length; i++) {
+      var el = document.getElementById('chk-free-' + i);
+      if (el && el.checked) checked.push(defs[i]);
+    }
+    return checked;
+  }
+
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
