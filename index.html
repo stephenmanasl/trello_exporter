@@ -204,7 +204,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   }
 
   function wireSectionToggles() {
-    var ids = ['selall-cardinfo', 'selall-metadata', 'selall-details', 'selall-customfields'];
+    var ids = ['selall-cardinfo', 'selall-metadata', 'selall-details', 'selall-customfields', 'selall-freecustomfields'];
     for (var i = 0; i < ids.length; i++) {
       (function (sectionId) {
         var selAll = document.getElementById(sectionId);
@@ -591,6 +591,18 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
         wireSectionToggles();
+        var saveFieldsBtn = document.getElementById('btn-save-fields');
+        if (saveFieldsBtn) saveFieldsBtn.onclick = function () {
+          saveFieldsBtn.disabled = true;
+          saveFreeFieldDefs(t, collectSettings()).then(function () {
+            saveFieldsBtn.disabled = false;
+            renderFreeCustomFields(t).then(function () { renderSettings(); });
+            setStatus('Field definitions saved.', 'success');
+          }).catch(function (err) {
+            saveFieldsBtn.disabled = false;
+            setStatus('Save failed: ' + (err && (err.message || err) || 'unknown error'), 'error');
+          });
+        };
         var authBtn = document.getElementById('btn-authorize');
         if (authBtn) authBtn.onclick = function () {
           setStatus('Authorizing...', '');
@@ -600,6 +612,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
             checkCustomFields(t);
+            renderFreeCustomFields(t).then(function () { renderSettings(); });
             setStatus('Authorized! Click Export to continue.', '');
           }).catch(function (err) {
             authBtn.disabled = false;
@@ -611,6 +624,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
             checkCustomFields(t);
+            renderFreeCustomFields(t).then(function () { renderSettings(); });
           } else {
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('export-section').style.display = 'none';
