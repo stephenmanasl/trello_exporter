@@ -315,6 +315,20 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return checked;
   }
 
+  function fetchFreeValues(t, cards) {
+    var results = {};
+    function chunk(start) {
+      if (start >= cards.length) return Promise.resolve(results);
+      var slice = cards.slice(start, start + 20);
+      return Promise.all(slice.map(function (c) {
+        return t.get(c.id, 'shared', FREE_VALUES_KEY).then(function (v) {
+          if (v) results[c.id] = v;
+        }).catch(function () {});
+      })).then(function () { return chunk(start + 20); });
+    }
+    return chunk(0);
+  }
+
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
@@ -403,7 +417,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     }).join('\n');
   }
 
-  function buildCardData(card) {
+  function buildCardData(card, freeValues) {
     var obj = {};
     if (isChecked('name'))  obj.name = card.name;
     if (isChecked('number')) obj.cardNumber = card.idShort;
@@ -431,6 +445,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     for (var ci = 0; ci < cfDefs.length; ci++) {
       obj[cfDefs[ci].display.name] = getCustomFieldDisplayValue(card, cfDefs[ci]);
     }
+    var fv = freeValues && freeValues[card.id] ? freeValues[card.id] : {};
+    var fdefs = getCheckedFreeFieldDefs();
+    for (var fi = 0; fi < fdefs.length; fi++) {
+      var fval = fv[fdefs[fi].id];
+      if (fval !== undefined && fval !== '') obj[fdefs[fi].name] = fval;
+    }
     return obj;
   }
 
@@ -454,22 +474,22 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     URL.revokeObjectURL(url);
   }
 
-  function exportJSON(cards) {
+  function exportJSON(cards, freeValues) {
     var checkedFields = getCheckedFields();
     var cfDefs = getCheckedCustomFieldDefs();
-    if (checkedFields.length === 0 && cfDefs.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+    if (checkedFields.length === 0 && cfDefs.length === 0 && getCheckedFreeFieldDefs().length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
     var data = { board: { name: boardName, url: boardUrl, exportedAt: new Date().toISOString() }, cards: [] };
-    cards.forEach(function (card) { data.cards.push(buildCardData(card)); });
+    cards.forEach(function (card) { data.cards.push(buildCardData(card, freeValues)); });
 
     downloadFile('trello-export.json', JSON.stringify(data, null, 2), 'application/json');
     setStatus('Exported ' + cards.length + ' cards as JSON.', 'success');
   }
 
-  function exportCSV(cards) {
+  function exportCSV(cards, freeValues) {
     var checkedFields = getCheckedFields();
     var cfDefs = getCheckedCustomFieldDefs();
-    if (checkedFields.length === 0 && cfDefs.length === 0) { setStatus('Select at least one field.', 'error'); return; }
+    if (checkedFields.length === 0 && cfDefs.length === 0 && getCheckedFreeFieldDefs().length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
     var headers = [];
     checkedFields.forEach(function (f) {
@@ -482,6 +502,10 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
     for (var cfi = 0; cfi < cfDefs.length; cfi++) {
       headers.push(cfDefs[cfi].display.name);
+    }
+    var fdefs = getCheckedFreeFieldDefs();
+    for (var fhi = 0; fhi < fdefs.length; fhi++) {
+      headers.push(fdefs[fhi].name);
     }
 
     var rows = [headers.map(escapeCsv).join(',')];
@@ -510,6 +534,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       });
       for (var cfj = 0; cfj < cfDefs.length; cfj++) {
         row.push(escapeCsv(getCustomFieldDisplayValue(card, cfDefs[cfj])));
+      }
+      var fv = freeValues && freeValues[card.id] ? freeValues[card.id] : {};
+      for (var fdi = 0; fdi < fdefs.length; fdi++) {
+        var fvVal = fv[fdefs[fdi].id];
+        row.push(escapeCsv(fvVal !== undefined ? fvVal : ''));
       }
       rows.push(row.join(','));
     });
@@ -568,8 +597,15 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           cards = [];
         }
         var fmt = getFormat();
-        if (fmt === 'json') exportJSON(cards);
-        else exportCSV(cards);
+        var freeChecked = getCheckedFreeFieldDefs();
+        if (freeChecked.length > 0) {
+          return fetchFreeValues(t, cards).then(function (valuesMap) {
+            if (fmt === 'json') exportJSON(cards, valuesMap);
+            else exportCSV(cards, valuesMap);
+          });
+        }
+        if (fmt === 'json') exportJSON(cards, {});
+        else exportCSV(cards, {});
       }).catch(function (err) {
         btn.disabled = false;
         var msg = err && (err.message || err.statusText || err) || 'unknown error';
