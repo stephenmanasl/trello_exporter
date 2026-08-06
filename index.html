@@ -12,6 +12,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
 .field-group { margin-bottom: 16px; }
 .field-group label { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
+.section-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.section-toggle input[type="checkbox"] { accent-color: #0079bf; width: 16px; height: 16px; }
 .field-group label:hover { background: #f4f5f7; border-radius: 3px; margin: 0 -4px; padding: 6px 4px; }
 .field-group input[type="checkbox"] { accent-color: #0079bf; width: 16px; height: 16px; }
 
@@ -37,8 +39,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     <button class="btn btn-primary" id="btn-authorize">Authorize</button>
   </div>
   <div id="export-section">
-  <h2>Card Info</h2>
-  <div class="field-group">
+  <h2><label class="section-toggle"><input type="checkbox" id="selall-cardinfo"> Card Info</label></h2>
+  <div class="field-group" data-section="selall-cardinfo">
     <label><input type="checkbox" id="chk-name" checked> Name</label>
     <label><input type="checkbox" id="chk-number" checked> Card Number</label>
     <label><input type="checkbox" id="chk-desc"> Description</label>
@@ -46,8 +48,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     <label><input type="checkbox" id="chk-pos"> Position</label>
   </div>
 
-  <h2>Metadata</h2>
-  <div class="field-group">
+  <h2><label class="section-toggle"><input type="checkbox" id="selall-metadata"> Metadata</label></h2>
+  <div class="field-group" data-section="selall-metadata">
     <label><input type="checkbox" id="chk-list" checked> List Name</label>
     <label><input type="checkbox" id="chk-start"> Start Date</label>
     <label><input type="checkbox" id="chk-due"> Due Date</label>
@@ -55,8 +57,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     <label><input type="checkbox" id="chk-members"> Members</label>
   </div>
 
-  <h2>Details</h2>
-  <div class="field-group">
+  <h2><label class="section-toggle"><input type="checkbox" id="selall-details"> Details</label></h2>
+  <div class="field-group" data-section="selall-details">
     <label><input type="checkbox" id="chk-checklists"> Checklists</label>
     <label><input type="checkbox" id="chk-comments"> Comments</label>
     <label><input type="checkbox" id="chk-attachments"> Attachments</label>
@@ -64,8 +66,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   </div>
 
   <div id="custom-fields-section" style="display:none;">
-    <h2>Custom Fields</h2>
-    <div class="field-group" id="custom-fields-container"></div>
+    <h2><label class="section-toggle"><input type="checkbox" id="selall-customfields"> Custom Fields</label></h2>
+    <div class="field-group" id="custom-fields-container" data-section="selall-customfields"></div>
   </div>
 
   <div class="format-toggle">
@@ -88,6 +90,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   var boardName = '';
   var boardUrl = '';
   var customFieldDefs = null;
+  var changeBound = false;
 
   function trelloFetch(path, token) {
     var sep = path.indexOf('?') !== -1 ? '&' : '?';
@@ -138,6 +141,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       return trelloFetch('/1/boards/' + ctx.board + '/customFields', token);
     }).then(function (fields) {
       if (!fields) return;
+      if (customFieldDefs) return;
       customFieldDefs = fields;
       if (fields.length > 0) {
         var section = document.getElementById('custom-fields-section');
@@ -150,9 +154,52 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             label.innerHTML = '<input type="checkbox" id="' + id + '"> ' + fields[i].display.name;
             container.appendChild(label);
           }
+          syncSectionToggle('selall-customfields');
         }
       }
     }).catch(function () {});
+  }
+
+  function getSectionChildren(sectionId) {
+    var group = document.querySelector('.field-group[data-section="' + sectionId + '"]');
+    if (!group) return [];
+    return group.querySelectorAll('input[type="checkbox"]');
+  }
+
+  function syncSectionToggle(sectionId) {
+    var selAll = document.getElementById(sectionId);
+    var children = getSectionChildren(sectionId);
+    if (!selAll || children.length === 0) return;
+    var checked = 0;
+    for (var i = 0; i < children.length; i++) { if (children[i].checked) checked++; }
+    selAll.checked = checked === children.length;
+    selAll.indeterminate = checked > 0 && checked < children.length;
+  }
+
+  function wireSectionToggles() {
+    var ids = ['selall-cardinfo', 'selall-metadata', 'selall-details', 'selall-customfields'];
+    for (var i = 0; i < ids.length; i++) {
+      (function (sectionId) {
+        var selAll = document.getElementById(sectionId);
+        if (!selAll) return;
+        selAll.onchange = function () {
+          var children = getSectionChildren(sectionId);
+          for (var j = 0; j < children.length; j++) { children[j].checked = selAll.checked; }
+          selAll.indeterminate = false;
+        };
+        syncSectionToggle(sectionId);
+      })(ids[i]);
+    }
+    if (changeBound) return;
+    changeBound = true;
+    document.addEventListener('change', function (e) {
+      var target = e.target;
+      if (!target || target.type !== 'checkbox') return;
+      var group = target.closest ? target.closest('.field-group[data-section]') : null;
+      if (!group) return;
+      var sectionId = group.getAttribute('data-section');
+      if (sectionId && target.id !== sectionId) syncSectionToggle(sectionId);
+    });
   }
 
   var FIELD_IDS = {
@@ -429,6 +476,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       t.render(function () {
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
+        wireSectionToggles();
         var authBtn = document.getElementById('btn-authorize');
         if (authBtn) authBtn.onclick = function () {
           setStatus('Authorizing...', '');
