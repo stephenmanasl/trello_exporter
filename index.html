@@ -715,6 +715,15 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     }
   }
 
+  function getBadgeColor(value) {
+    var v = String(value || '').toLowerCase();
+    if (v === 'top/critical' || v === 'critical') return 'red';
+    if (v === 'high') return 'orange';
+    if (v === 'medium') return 'yellow';
+    if (v === 'low') return 'sky';
+    return 'blue';
+  }
+
   var isPopup = window.location.hash.indexOf('popup') !== -1 || window.location.search.indexOf('popup') !== -1;
   var isEdit = window.location.search.indexOf('edit') !== -1;
 
@@ -799,6 +808,26 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             });
           }
         }];
+      },
+      'card-badges': function (t, card) {
+        var defsPromise = t.get('board', 'shared', FREE_DEFS_KEY).catch(function () { return null; });
+        return Promise.resolve(card).then(function (c) {
+          return t.get(c.id, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
+            return { card: c, values: values || {} };
+          });
+        }).then(function (data) {
+          return defsPromise.then(function (defs) {
+            if (!Array.isArray(defs) || defs.length === 0) return [];
+            var badges = [];
+            for (var i = 0; i < defs.length; i++) {
+              var def = defs[i];
+              var value = data.values[def.id];
+              if (value === undefined || value === '') continue;
+              badges.push({ text: value, color: getBadgeColor(value) });
+            }
+            return badges;
+          });
+        }).catch(function () { return []; });
       }
     });
   }
