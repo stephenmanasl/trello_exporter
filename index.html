@@ -213,6 +213,25 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
+  function getFreeFieldDefs() { return freeFieldDefs || DEFAULT_FIELD_DEFS; }
+
+  function loadFreeFieldDefs(t) {
+    return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
+      if (Array.isArray(defs) && defs.length === 5) {
+        freeFieldDefs = defs;
+      } else {
+        freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
+        return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
+      }
+    }).catch(function () {
+      freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
+    });
+  }
+
+  function saveFreeFieldDefs(t, defs) {
+    return t.set('board', 'shared', FREE_DEFS_KEY, defs);
+  }
+
   var FIELD_IDS = {
     name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
