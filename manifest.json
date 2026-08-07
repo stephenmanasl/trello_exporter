@@ -9,7 +9,8 @@
   "capabilities": [
     "board-buttons",
     "card-buttons",
-    "card-badges"
+    "card-badges",
+    "card-detail-badges"
   ],
   "connectors": {
     "iframe": {
