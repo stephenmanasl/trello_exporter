@@ -85,6 +85,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   </div>
 
   <button class="btn btn-primary" id="btn-export">Export</button>
+  <div id="download-area" style="display:none;"></div>
   </div>
 
   <div id="edit-section" style="display:none;">
@@ -233,10 +234,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
       if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
-        // Check if field IDs match
         var idsMatch = true;
         for (var i = 0; i < DEFAULT_FIELD_DEFS.length; i++) {
-          if (!defs[i] || defs[i].id !== DEFAULT_FIELD_DEFS[i].id || defs[i].name !== DEFAULT_FIELD_DEFS[i].name) {
+          if (!defs[i] || defs[i].id !== DEFAULT_FIELD_DEFS[i].id) {
             idsMatch = false;
             break;
           }
@@ -246,7 +246,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           return;
         }
       }
-      // Schema mismatch or no data - reset to defaults
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
       return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
     }).catch(function () {
@@ -565,6 +564,56 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return fields;
   }
 
+  function sanitizeFilename(name) {
+    return String(name || 'export').replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'export';
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function buildExportFilename(ext) {
+    var now = new Date();
+    var stamp = now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate())
+      + '_' + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds());
+    return sanitizeFilename(boardName) + '_' + stamp + '.' + ext;
+  }
+
+  function showDownloadUi(filename, content) {
+    var area = document.getElementById('download-area');
+    if (!area) return;
+    area.style.display = 'block';
+    area.innerHTML = '';
+
+    var blob = new Blob([content], { type: 'text/plain' });
+    var url = URL.createObjectURL(blob);
+
+    var dlBtn = document.createElement('a');
+    dlBtn.href = url;
+    dlBtn.download = filename;
+    dlBtn.className = 'btn btn-primary';
+    dlBtn.textContent = 'Download ' + filename;
+    dlBtn.style.cssText = 'margin:8px 0;display:inline-block;text-decoration:none;';
+    dlBtn.onclick = function () {
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    };
+    area.appendChild(dlBtn);
+
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.textContent = 'Show content';
+    toggle.style.cssText = 'margin-left:8px;background:none;border:1px solid #dfe1e6;color:#5e6c84;cursor:pointer;padding:4px 8px;border-radius:3px;';
+    area.appendChild(toggle);
+
+    var pre = document.createElement('pre');
+    pre.style.cssText = 'display:none;margin-top:8px;max-height:200px;overflow:auto;background:#f4f5f7;padding:8px;border-radius:3px;font-size:12px;white-space:pre-wrap;word-break:break-all;';
+    pre.textContent = content.length > 50000 ? content.slice(0, 50000) + '\n... [truncated]' : content;
+    area.appendChild(pre);
+
+    toggle.onclick = function () {
+      pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
+      toggle.textContent = pre.style.display === 'none' ? 'Show content' : 'Hide content';
+    };
+  }
+
   function downloadFile(filename, content, mimeType) {
     var blob = new Blob([content], { type: mimeType });
     var url = URL.createObjectURL(blob);
@@ -574,7 +623,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 
   function exportJSON(cards, freeValues) {
@@ -585,8 +634,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     var data = { board: { name: boardName, url: boardUrl, exportedAt: new Date().toISOString() }, cards: [] };
     cards.forEach(function (card) { data.cards.push(buildCardData(card, freeValues)); });
 
-    downloadFile('trello-export.json', JSON.stringify(data, null, 2), 'application/json');
-    setStatus('Exported ' + cards.length + ' cards as JSON.', 'success');
+    var filename = buildExportFilename('json');
+    var content = JSON.stringify(data, null, 2);
+    downloadFile(filename, content, 'application/json');
+    showDownloadUi(filename, content);
+    setStatus('Exported ' + cards.length + ' cards as JSON → ' + filename + ' (Downloads folder).', 'success');
   }
 
   function exportCSV(cards, freeValues) {
@@ -646,8 +698,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       rows.push(row.join(','));
     });
 
-    downloadFile('trello-export.csv', '\uFEFF' + rows.join('\n'), 'text/csv;charset=utf-8');
-    setStatus('Exported ' + cards.length + ' cards as CSV.', 'success');
+    var filename = buildExportFilename('csv');
+    var content = '\uFEFF' + rows.join('\n');
+    downloadFile(filename, content, 'text/csv;charset=utf-8');
+    showDownloadUi(filename, content);
+    setStatus('Exported ' + cards.length + ' cards as CSV → ' + filename + ' (Downloads folder).', 'success');
   }
 
   function buildApiUrl(boardId) {
