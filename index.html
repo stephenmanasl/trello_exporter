@@ -586,13 +586,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return sanitizeFilename(boardName) + '_' + stamp + '.' + ext;
   }
 
-  function showDownloadUi(filename, content) {
+  function showDownloadUi(filename, content, mimeType) {
     var area = document.getElementById('download-area');
     if (!area) return;
     area.style.display = 'block';
     area.innerHTML = '';
 
-    var blob = new Blob([content], { type: 'text/plain' });
+    var blob = new Blob([content], { type: mimeType || 'application/octet-stream' });
     var url = URL.createObjectURL(blob);
 
     var dlBtn = document.createElement('a');
@@ -600,16 +600,22 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     dlBtn.download = filename;
     dlBtn.className = 'btn btn-primary';
     dlBtn.textContent = 'Download ' + filename;
-    dlBtn.style.cssText = 'margin:8px 0;display:inline-block;text-decoration:none;';
+    dlBtn.style.cssText = 'margin:8px 0;display:inline-block;text-decoration:none;text-align:center;';
+    dlBtn.setAttribute('rel', 'noopener');
     dlBtn.onclick = function () {
-      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
     };
     area.appendChild(dlBtn);
+
+    var hint = document.createElement('p');
+    hint.style.cssText = 'font-size:12px;color:#5e6c84;margin:4px 0;';
+    hint.textContent = 'Click the button above to download. File will be saved to your Downloads folder.';
+    area.appendChild(hint);
 
     var toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.textContent = 'Show content';
-    toggle.style.cssText = 'margin-left:8px;background:none;border:1px solid #dfe1e6;color:#5e6c84;cursor:pointer;padding:4px 8px;border-radius:3px;';
+    toggle.style.cssText = 'background:none;border:1px solid #dfe1e6;color:#5e6c84;cursor:pointer;padding:4px 8px;border-radius:3px;font-size:12px;';
     area.appendChild(toggle);
 
     var pre = document.createElement('pre');
@@ -623,18 +629,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     };
   }
 
-  function downloadFile(filename, content, mimeType) {
-    var blob = new Blob([content], { type: mimeType });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
-  }
-
   function exportJSON(cards, freeValues) {
     var checkedFields = getCheckedFields();
     var cfDefs = getCheckedCustomFieldDefs();
@@ -645,9 +639,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
     var filename = buildExportFilename('json');
     var content = JSON.stringify(data, null, 2);
-    downloadFile(filename, content, 'application/json');
-    showDownloadUi(filename, content);
-    setStatus('Exported ' + cards.length + ' cards as JSON → ' + filename + ' (Downloads folder).', 'success');
+    showDownloadUi(filename, content, 'application/json');
+    setStatus('Exported ' + cards.length + ' cards as JSON → ' + filename + '.', 'success');
   }
 
   function exportCSV(cards, freeValues) {
@@ -709,9 +702,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
     var filename = buildExportFilename('csv');
     var content = '\uFEFF' + rows.join('\n');
-    downloadFile(filename, content, 'text/csv;charset=utf-8');
-    showDownloadUi(filename, content);
-    setStatus('Exported ' + cards.length + ' cards as CSV → ' + filename + ' (Downloads folder).', 'success');
+    showDownloadUi(filename, content, 'text/csv;charset=utf-8');
+    setStatus('Exported ' + cards.length + ' cards as CSV → ' + filename + '.', 'success');
   }
 
   function buildApiUrl(boardId) {
