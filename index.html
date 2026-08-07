@@ -234,7 +234,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
-      console.log('loadFreeFieldDefs loaded:', Array.isArray(defs) ? defs.length : 'not array');
       if (Array.isArray(defs) && defs.length > 0) {
         var defMap = {};
         for (var i = 0; i < defs.length; i++) {
@@ -245,10 +244,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           var defaultDef = DEFAULT_FIELD_DEFS[j];
           merged.push(defMap[defaultDef.id] || defaultDef);
         }
-        console.log('loadFreeFieldDefs merged:', merged.length);
         freeFieldDefs = merged;
         if (defs.length !== merged.length) {
-          console.log('loadFreeFieldDefs updating board storage');
           return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
         }
       } else {
@@ -821,18 +818,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }];
       },
       'card-badges': function (t, opts) {
-        console.log('card-badges invoked');
         return t.card('id', 'name').then(function (card) {
-          console.log('card-badges card:', card.id, card.name);
           return t.get(card.id, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
-            console.log('card-badges values:', values);
             return { card: card, values: values || {} };
           });
         }).then(function (data) {
-          console.log('card-badges about to call loadFreeFieldDefs');
           return loadFreeFieldDefs(t).then(function () {
             var defs = getFreeFieldDefs();
-            console.log('card-badges defs:', defs.length);
             var badges = [];
             for (var i = 0; i < defs.length; i++) {
               var def = defs[i];
@@ -840,25 +832,20 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
               if (value === undefined || value === '') continue;
               badges.push({ text: value, color: getBadgeColor(value) });
             }
-            console.log('card-badges returning:', badges.length, 'badges');
             return badges;
           });
-        }).catch(function (e) {
-          console.error('card-badges error:', e);
+        }).catch(function () {
           return [];
         });
       },
       'card-detail-badges': function (t, opts) {
-        console.log('card-detail-badges invoked');
         return t.card('id').then(function (card) {
           return t.get(card.id, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
-            console.log('card-detail-badges values:', values);
             return { card: card, values: values || {} };
           });
         }).then(function (data) {
           return loadFreeFieldDefs(t).then(function () {
             var defs = getFreeFieldDefs();
-            console.log('card-detail-badges defs:', defs.length);
             var badges = [];
             for (var i = 0; i < defs.length; i++) {
               var def = defs[i];
@@ -877,7 +864,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
                 }
               });
             }
-            console.log('card-detail-badges returning:', badges.length, 'badges');
             badges.push({
               title: 'Custom Fields',
               text: 'Edit',
@@ -892,8 +878,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             });
             return badges;
           });
-        }).catch(function (e) {
-          console.error('card-detail-badges error:', e);
+        }).catch(function () {
           return [];
         });
       }
