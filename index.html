@@ -232,24 +232,23 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
-      if (Array.isArray(defs) && defs.length > 0) {
-        var defMap = {};
-        for (var i = 0; i < defs.length; i++) {
-          defMap[defs[i].id] = defs[i];
+      if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
+        // Check if field IDs match
+        var idsMatch = true;
+        for (var i = 0; i < DEFAULT_FIELD_DEFS.length; i++) {
+          if (!defs[i] || defs[i].id !== DEFAULT_FIELD_DEFS[i].id || defs[i].name !== DEFAULT_FIELD_DEFS[i].name) {
+            idsMatch = false;
+            break;
+          }
         }
-        var merged = [];
-        for (var j = 0; j < DEFAULT_FIELD_DEFS.length; j++) {
-          var defaultDef = DEFAULT_FIELD_DEFS[j];
-          merged.push(defMap[defaultDef.id] || defaultDef);
+        if (idsMatch) {
+          freeFieldDefs = defs;
+          return;
         }
-        freeFieldDefs = merged;
-        if (defs.length !== merged.length) {
-          return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
-        }
-      } else {
-        freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
-        return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
       }
+      // Schema mismatch or no data - reset to defaults
+      freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
+      return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
     }).catch(function () {
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
     });
