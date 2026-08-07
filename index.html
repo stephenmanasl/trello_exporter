@@ -232,12 +232,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function getFreeFieldDefs() { return freeFieldDefs || DEFAULT_FIELD_DEFS; }
 
   function loadFreeFieldDefs(t) {
+    var debugEl = document.getElementById('status');
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
-      console.log('loadFreeFieldDefs: loaded', defs ? defs.length : 'null', 'defs');
+      if (debugEl) debugEl.textContent += ' | DEBUG loadFreeFieldDefs: read ' + (defs ? defs.length : 'null') + ' from storage';
       if (defs) {
-        console.log('loadFreeFieldDefs: stored names:', defs.map(function(d) { return d.id + ':' + d.name; }).join(', '));
+        if (debugEl) debugEl.textContent += ' [' + defs.map(function(d) { return d.id + ':' + d.name; }).join(', ') + ']';
       }
-      console.log('loadFreeFieldDefs: default names:', DEFAULT_FIELD_DEFS.map(function(d) { return d.id + ':' + d.name; }).join(', '));
       
       if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
         var idsMatch = true;
@@ -248,25 +248,28 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           }
         }
         if (idsMatch) {
-          console.log('loadFreeFieldDefs: using stored defs (ids match)');
+          if (debugEl) debugEl.textContent += ' | DEBUG: using stored (ids match)';
           freeFieldDefs = defs;
           return;
         }
       }
-      console.log('loadFreeFieldDefs: resetting to defaults');
+      if (debugEl) debugEl.textContent += ' | DEBUG: resetting to defaults';
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
       return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
     }).catch(function () {
-      console.log('loadFreeFieldDefs: error, using defaults');
+      if (debugEl) debugEl.textContent += ' | DEBUG loadFreeFieldDefs: error, using defaults';
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
     });
   }
 
   function saveFreeFieldDefs(t, defs) {
-    console.log('saveFreeFieldDefs: saving', defs.length, 'defs');
-    console.log('saveFreeFieldDefs: names:', defs.map(function(d) { return d.name; }).join(', '));
+    var debugEl = document.getElementById('status');
+    if (debugEl) debugEl.textContent = 'DEBUG saveFreeFieldDefs: saving ' + defs.length + ' defs: ' + defs.map(function(d) { return d.id + ':' + d.name; }).join(', ');
     return t.set('board', 'shared', FREE_DEFS_KEY, defs).then(function() {
-      console.log('saveFreeFieldDefs: save completed');
+      if (debugEl) debugEl.textContent += ' | DEBUG: t.set resolved';
+    }).catch(function(err) {
+      if (debugEl) debugEl.textContent += ' | DEBUG: t.set FAILED: ' + (err && err.message || err);
+      throw err;
     });
   }
 
@@ -804,6 +807,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     try {
       var t = T.iframe({ appKey: APP_KEY, appName: 'Board Export', appAuthor: 'Trello Export' });
       t.render(function () {
+        var debugEl = document.getElementById('status');
+        if (debugEl) debugEl.textContent += ' | DEBUG: t.render() called at ' + new Date().toISOString();
+        
         if (isEdit) { initEdit(t); return; }
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
