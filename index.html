@@ -234,6 +234,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
+      console.log('loadFreeFieldDefs loaded:', Array.isArray(defs) ? defs.length : 'not array');
       if (Array.isArray(defs) && defs.length > 0) {
         var defMap = {};
         for (var i = 0; i < defs.length; i++) {
@@ -244,8 +245,10 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           var defaultDef = DEFAULT_FIELD_DEFS[j];
           merged.push(defMap[defaultDef.id] || defaultDef);
         }
+        console.log('loadFreeFieldDefs merged:', merged.length);
         freeFieldDefs = merged;
         if (defs.length !== merged.length) {
+          console.log('loadFreeFieldDefs updating board storage');
           return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
         }
       } else {
