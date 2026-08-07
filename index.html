@@ -816,12 +816,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           debugEl.textContent = 'DEBUG: collected ' + collected.length + ' defs: ' + collected.map(function(d) { return d.id + ':' + d.name; }).join(', ');
           saveFreeFieldDefs(t, collected).then(function () {
             saveFieldsBtn.disabled = false;
-            debugEl.textContent = 'DEBUG: save done, reloading...';
+            debugEl.textContent += ' | DEBUG: save done, reloading...';
             renderFreeCustomFields(t).then(function () { 
               renderSettings();
-              debugEl.textContent = 'DEBUG: reloaded, field 0 = ' + (document.getElementById('cfg-name-0') ? document.getElementById('cfg-name-0').value : 'null');
+              debugEl.textContent += ' | DEBUG: reloaded, field 0 = ' + (document.getElementById('cfg-name-0') ? document.getElementById('cfg-name-0').value : 'null');
             });
-            setStatus('Field definitions saved.', 'success');
           }).catch(function (err) {
             saveFieldsBtn.disabled = false;
             setStatus('Save failed: ' + (err && (err.message || err) || 'unknown error'), 'error');
