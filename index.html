@@ -232,24 +232,36 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
+      console.log('loadFreeFieldDefs: loaded', defs ? defs.length : 'null', 'fields');
+      if (defs) {
+        console.log('loadFreeFieldDefs: stored fields:', JSON.stringify(defs.map(d => d.id + ':' + d.name)));
+      }
+      console.log('loadFreeFieldDefs: default fields:', JSON.stringify(DEFAULT_FIELD_DEFS.map(d => d.id + ':' + d.name)));
+      
       if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
         // Check if field IDs match
         var idsMatch = true;
         for (var i = 0; i < DEFAULT_FIELD_DEFS.length; i++) {
           if (!defs[i] || defs[i].id !== DEFAULT_FIELD_DEFS[i].id || defs[i].name !== DEFAULT_FIELD_DEFS[i].name) {
             idsMatch = false;
+            console.log('loadFreeFieldDefs: mismatch at index', i, '- stored:', defs[i] ? defs[i].id + ':' + defs[i].name : 'null', 'default:', DEFAULT_FIELD_DEFS[i].id + ':' + DEFAULT_FIELD_DEFS[i].name);
             break;
           }
         }
         if (idsMatch) {
+          console.log('loadFreeFieldDefs: using stored defs (match)');
           freeFieldDefs = defs;
           return;
         }
       }
       // Schema mismatch or no data - reset to defaults
+      console.log('loadFreeFieldDefs: resetting to defaults');
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
-      return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
-    }).catch(function () {
+      return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs).then(function() {
+        console.log('loadFreeFieldDefs: defaults saved to storage');
+      });
+    }).catch(function (err) {
+      console.error('loadFreeFieldDefs: error', err);
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
     });
   }
