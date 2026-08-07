@@ -233,6 +233,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
+      console.log('loadFreeFieldDefs: loaded', defs ? defs.length : 'null', 'defs');
+      if (defs) {
+        console.log('loadFreeFieldDefs: stored names:', defs.map(function(d) { return d.id + ':' + d.name; }).join(', '));
+      }
+      console.log('loadFreeFieldDefs: default names:', DEFAULT_FIELD_DEFS.map(function(d) { return d.id + ':' + d.name; }).join(', '));
+      
       if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
         var idsMatch = true;
         for (var i = 0; i < DEFAULT_FIELD_DEFS.length; i++) {
@@ -242,19 +248,26 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           }
         }
         if (idsMatch) {
+          console.log('loadFreeFieldDefs: using stored defs (ids match)');
           freeFieldDefs = defs;
           return;
         }
       }
+      console.log('loadFreeFieldDefs: resetting to defaults');
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
       return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
     }).catch(function () {
+      console.log('loadFreeFieldDefs: error, using defaults');
       freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
     });
   }
 
   function saveFreeFieldDefs(t, defs) {
-    return t.set('board', 'shared', FREE_DEFS_KEY, defs);
+    console.log('saveFreeFieldDefs: saving', defs.length, 'defs');
+    console.log('saveFreeFieldDefs: names:', defs.map(function(d) { return d.name; }).join(', '));
+    return t.set('board', 'shared', FREE_DEFS_KEY, defs).then(function() {
+      console.log('saveFreeFieldDefs: save completed');
+    });
   }
 
   function renderFreeCustomFields(t) {
