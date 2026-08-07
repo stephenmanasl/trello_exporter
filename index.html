@@ -229,7 +229,12 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
-  function getFreeFieldDefs() { return freeFieldDefs || DEFAULT_FIELD_DEFS; }
+  function getFreeFieldDefs() { 
+    var result = freeFieldDefs || DEFAULT_FIELD_DEFS;
+    var debugEl = document.getElementById('status');
+    if (debugEl) debugEl.textContent += ' | DEBUG getFreeFieldDefs: ' + (freeFieldDefs ? 'freeFieldDefs' : 'DEFAULT') + ' [' + result.map(function(d) { return d.name; }).join(',') + ']';
+    return result;
+  }
 
   function loadFreeFieldDefs(t) {
     var debugEl = document.getElementById('status');
@@ -289,11 +294,19 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     });
   }
 
+  var renderSettingsCallCount = 0;
+  
   function renderSettings() {
+    renderSettingsCallCount++;
+    var debugEl = document.getElementById('status');
+    if (debugEl) debugEl.textContent += ' | DEBUG renderSettings #' + renderSettingsCallCount;
+    
     var container = document.getElementById('cf-settings-container');
     if (!container) return;
     container.innerHTML = '';
     var defs = getFreeFieldDefs();
+    if (debugEl) debugEl.textContent += ' using ' + defs.length + ' defs [' + defs.map(function(d) { return d.name; }).join(',') + ']';
+    
     for (var i = 0; i < defs.length; i++) {
       var def = defs[i];
       var fieldset = document.createElement('fieldset');
