@@ -864,9 +864,32 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
               var def = defs[i];
               var value = data.values[def.id];
               if (value === undefined || value === '') continue;
-              badges.push({ title: def.name, text: value, color: getBadgeColor(value) });
+              badges.push({ 
+                title: def.name, 
+                text: value, 
+                color: getBadgeColor(value),
+                callback: function (t) {
+                  return t.popup({
+                    title: 'Edit Custom Fields',
+                    url: t.signUrl('./index.html?popup=1&edit=1'),
+                    height: 400
+                  });
+                }
+              });
             }
             console.log('card-detail-badges returning:', badges.length, 'badges');
+            badges.push({
+              title: 'Custom Fields',
+              text: 'Edit',
+              color: 'blue',
+              callback: function (t) {
+                return t.popup({
+                  title: 'Edit Custom Fields',
+                  url: t.signUrl('./index.html?popup=1&edit=1'),
+                  height: 400
+                });
+              }
+            });
             return badges;
           });
         }).catch(function (e) {
