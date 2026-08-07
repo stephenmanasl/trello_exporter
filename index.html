@@ -793,7 +793,6 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
       },
       'card-buttons': function (t) {
         return [{
-          icon: 'https://stephenmanasl.github.io/trello_exporter/icon.svg',
           text: 'Custom Fields',
           condition: 'always',
           callback: function (t) {
@@ -806,13 +805,16 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }];
       },
       'card-badges': function (t, card) {
+        console.log('card-badges invoked for card:', card.id);
         return Promise.resolve(card).then(function (c) {
           return t.get(c.id, 'shared', FREE_VALUES_KEY, {}).then(function (values) {
+            console.log('card-badges values:', values);
             return { card: c, values: values || {} };
           });
         }).then(function (data) {
           return loadFreeFieldDefs(t).then(function () {
             var defs = getFreeFieldDefs();
+            console.log('card-badges defs:', defs.length);
             var badges = [];
             for (var i = 0; i < defs.length; i++) {
               var def = defs[i];
@@ -820,9 +822,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
               if (value === undefined || value === '') continue;
               badges.push({ text: value, color: getBadgeColor(value) });
             }
+            console.log('card-badges returning:', badges.length, 'badges');
             return badges;
           });
-        }).catch(function () { return []; });
+        }).catch(function (e) {
+          console.error('card-badges error:', e);
+          return [];
+        });
       }
     });
   }
