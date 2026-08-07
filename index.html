@@ -829,6 +829,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             return { card: card, values: values || {} };
           });
         }).then(function (data) {
+          console.log('card-badges about to call loadFreeFieldDefs');
           return loadFreeFieldDefs(t).then(function () {
             var defs = getFreeFieldDefs();
             console.log('card-badges defs:', defs.length);
