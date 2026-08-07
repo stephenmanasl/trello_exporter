@@ -235,7 +235,19 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   function loadFreeFieldDefs(t) {
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
       if (Array.isArray(defs) && defs.length > 0) {
-        freeFieldDefs = defs;
+        var defMap = {};
+        for (var i = 0; i < defs.length; i++) {
+          defMap[defs[i].id] = defs[i];
+        }
+        var merged = [];
+        for (var j = 0; j < DEFAULT_FIELD_DEFS.length; j++) {
+          var defaultDef = DEFAULT_FIELD_DEFS[j];
+          merged.push(defMap[defaultDef.id] || defaultDef);
+        }
+        freeFieldDefs = merged;
+        if (defs.length !== merged.length) {
+          return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
+        }
       } else {
         freeFieldDefs = DEFAULT_FIELD_DEFS.slice();
         return t.set('board', 'shared', FREE_DEFS_KEY, freeFieldDefs);
