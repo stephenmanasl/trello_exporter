@@ -73,6 +73,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   <h2><label class="section-toggle"><input type="checkbox" id="selall-freecustomfields"> Free Custom Fields</label></h2>
   <div class="field-group" data-section="selall-freecustomfields" id="free-custom-fields-container"></div>
 
+  <details id="filter-section" style="margin-bottom:16px;">
+    <summary style="font-size:13px; color:#5e6c84; cursor:pointer;">Filter Cards</summary>
+    <div id="filter-controls-container" style="padding:8px 0 0;"></div>
+    <button class="btn btn-primary" id="btn-apply-filter" type="button">Filter</button>
+    <div id="filter-results"></div>
+  </details>
+
   <details id="cf-settings" style="margin-bottom:16px;">
     <summary style="font-size:13px; color:#5e6c84; cursor:pointer;">Custom Fields Settings</summary>
     <div id="cf-settings-container"></div>
@@ -310,6 +317,140 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         fieldset.appendChild(optsInput);
       }
       container.appendChild(fieldset);
+    }
+  }
+
+  function buildFilterControls() {
+    var container = document.getElementById('filter-controls-container');
+    if (!container) return;
+    container.innerHTML = '';
+    var defs = getFreeFieldDefs();
+    for (var i = 0; i < defs.length; i++) {
+      var def = defs[i];
+      var row = document.createElement('label');
+      row.style.cssText = 'display:block;padding:6px 0;font-size:14px;';
+      row.appendChild(document.createTextNode(def.name + ': '));
+      if (def.type === 'select') {
+        var sel = document.createElement('select');
+        sel.id = 'filter-field-' + i;
+        sel.style.cssText = 'width:100%;padding:6px;margin-top:4px;';
+        var all = document.createElement('option');
+        all.value = '';
+        all.textContent = '(All)';
+        sel.appendChild(all);
+        var none = document.createElement('option');
+        none.value = '__none__';
+        none.textContent = '(none)';
+        sel.appendChild(none);
+        (def.options || []).forEach(function (opt) {
+          var o = document.createElement('option');
+          o.value = opt;
+          o.textContent = opt;
+          sel.appendChild(o);
+        });
+        row.appendChild(sel);
+      } else {
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'filter-field-' + i;
+        input.placeholder = 'Search...';
+        input.style.cssText = 'width:100%;padding:6px;margin-top:4px;';
+        row.appendChild(input);
+      }
+      container.appendChild(row);
+    }
+  }
+
+  function cardPassesFilter(card, values, defs) {
+    for (var i = 0; i < defs.length; i++) {
+      var def = defs[i];
+      var el = document.getElementById('filter-field-' + i);
+      if (!el) continue;
+      var raw = el.value;
+      var v = values && values[card.id] ? values[card.id][def.id] : undefined;
+      var hasValue = v !== undefined && v !== '';
+      if (def.type === 'select') {
+        if (raw === '__none__') {
+          if (hasValue) return false;
+        } else if (raw !== '') {
+          if (v !== raw) return false;
+        }
+      } else {
+        var q = raw.trim();
+        if (q !== '' && String(v === undefined ? '' : v).toLowerCase().indexOf(q.toLowerCase()) === -1) return false;
+      }
+    }
+    return true;
+  }
+
+  function renderFilterResults(cards, freeValues, defs) {
+    var area = document.getElementById('filter-results');
+    if (!area) return;
+    area.innerHTML = '';
+    var count = document.createElement('p');
+    count.style.cssText = 'font-size:13px;color:#5e6c84;margin:8px 0 4px;';
+    count.textContent = cards.length === 0 ? 'No matching cards.' : (cards.length + ' matching card' + (cards.length === 1 ? '' : 's') + '.');
+    area.appendChild(count);
+    cards.forEach(function (card) {
+      var row = document.createElement('div');
+      row.style.cssText = 'padding:8px;border:1px solid #dfe1e6;border-radius:3px;margin:6px 0;font-size:13px;';
+      var link = document.createElement('a');
+      link.href = card.url;
+      link.target = '_blank';
+      link.textContent = card.name;
+      link.style.cssText = 'color:#0079bf;text-decoration:none;font-weight:500;';
+      row.appendChild(link);
+      var meta = document.createElement('div');
+      meta.style.cssText = 'color:#5e6c84;font-size:12px;margin:2px 0;';
+      meta.textContent = '#' + card.idShort + ' · ' + (card.list ? card.list.name : '');
+      row.appendChild(meta);
+      var fv = freeValues && freeValues[card.id] ? freeValues[card.id] : {};
+      var parts = [];
+      for (var i = 0; i < defs.length; i++) {
+        var val = fv[defs[i].id];
+        parts.push(defs[i].name + ': ' + (val === undefined || val === '' ? '(none)' : val));
+      }
+      var line = document.createElement('div');
+      line.style.cssText = 'font-size:12px;color:#172b4d;';
+      line.textContent = parts.join(' · ');
+      row.appendChild(line);
+      area.appendChild(row);
+    });
+  }
+
+  function applyFilter(t) {
+    var btn = document.getElementById('btn-apply-filter');
+    var step = 'init';
+    try {
+      setStatus('Filtering...', '');
+      if (btn) btn.disabled = true;
+      var ctx = t.getContext();
+      var boardId = ctx.board;
+      step = 'getToken';
+      t.getRestApi().getToken().then(function (token) {
+        if (!token) {
+          if (btn) btn.disabled = false;
+          setStatus('Not authorized. Click Authorize first.', 'error');
+          return null;
+        }
+        step = 'getCards';
+        return trelloFetch(buildApiUrl(boardId), token);
+      }).then(function (cards) {
+        if (!cards) return;
+        var defs = getFreeFieldDefs();
+        return fetchFreeValues(t, cards).then(function (valuesMap) {
+          var matched = cards.filter(function (card) { return cardPassesFilter(card, valuesMap, defs); });
+          renderFilterResults(matched, valuesMap, defs);
+          setStatus('Filtered ' + matched.length + ' of ' + cards.length + ' cards.', 'success');
+        });
+      }).catch(function (err) {
+        if (btn) btn.disabled = false;
+        var msg = err && (err.message || err.statusText || err) || 'unknown error';
+        setStatus('Filter failed (step=' + step + '): ' + msg, 'error');
+      });
+    } catch (e) {
+      if (btn) btn.disabled = false;
+      setStatus('Filter failed (sync, step=' + step + '): ' + (e && (e.message || e) || 'unknown error'), 'error');
     }
   }
 
@@ -796,6 +937,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
         wireSectionToggles();
+        var filterBtn = document.getElementById('btn-apply-filter');
+        if (filterBtn) filterBtn.onclick = function () { applyFilter(t); };
         var saveFieldsBtn = document.getElementById('btn-save-fields');
         if (saveFieldsBtn) saveFieldsBtn.onclick = function () {
           saveFieldsBtn.disabled = true;
@@ -819,7 +962,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
             checkCustomFields(t);
-            renderFreeCustomFields(t).then(function () { renderSettings(); });
+            renderFreeCustomFields(t).then(function () { renderSettings(); buildFilterControls(); });
             setStatus('Authorized! Click Export to continue.', '');
           }).catch(function (err) {
             authBtn.disabled = false;
@@ -831,7 +974,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
             checkCustomFields(t);
-            renderFreeCustomFields(t).then(function () { renderSettings(); });
+            renderFreeCustomFields(t).then(function () { renderSettings(); buildFilterControls(); });
           } else {
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('export-section').style.display = 'none';
