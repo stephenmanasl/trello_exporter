@@ -905,11 +905,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             for (var i = 0; i < defs.length; i++) {
               var def = defs[i];
               var value = data.values[def.id];
-              if (value === undefined || value === '') continue;
-              badges.push({ 
-                title: def.name, 
-                text: value, 
-                color: getBadgeColor(value),
+              var empty = value === undefined || value === '';
+              badges.push({
+                title: def.name,
+                text: empty ? '(none)' : value,
+                color: empty ? 'gray' : getBadgeColor(value),
                 callback: function (t) {
                   return t.popup({
                     title: 'Edit Custom Fields',
