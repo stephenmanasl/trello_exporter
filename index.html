@@ -41,8 +41,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   <div id="export-section">
   <h2><label class="section-toggle"><input type="checkbox" id="selall-cardinfo"> Card Info</label></h2>
   <div class="field-group" data-section="selall-cardinfo">
-    <label><input type="checkbox" id="chk-name" checked> Name</label>
     <label><input type="checkbox" id="chk-number" checked> Card Number</label>
+    <label><input type="checkbox" id="chk-name" checked> Name</label>
     <label><input type="checkbox" id="chk-desc"> Description</label>
     <label><input type="checkbox" id="chk-url"> URL</label>
     <label><input type="checkbox" id="chk-pos"> Position</label>
@@ -92,6 +92,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   </div>
 
   <button class="btn btn-primary" id="btn-export">Export</button>
+  <button class="btn" id="btn-save-columns" type="button" style="background:#f4f5f7;color:#172b4d;border:1px solid #dfe1e6;">Save Column Selection</button>
   <div id="download-area" style="display:none;"></div>
   </div>
 
@@ -119,6 +120,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   var FREE_DEFS_KEY = 'freeCustomFieldDefs';
   var FREE_VALUES_KEY = 'freeCustomFieldValues';
+  var EXPORT_SELECTION_KEY = 'exportFieldSelection';
   var freeFieldDefs = null;
   var DEFAULT_FIELD_DEFS = [
     { id: 'f1', name: 'Priority', type: 'select', options: ['Top/Critical', 'High', 'Medium', 'Low'] },
@@ -169,7 +171,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   }
 
   function checkCustomFields(t) {
-    t.getRestApi().getToken().then(function (token) {
+    return t.getRestApi().getToken().then(function (token) {
       if (!token) return;
       var ctx = t.getContext();
       return trelloFetch('/1/boards/' + ctx.board + '/customFields', token);
@@ -479,6 +481,60 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return checked;
   }
 
+  function collectExportSelection() {
+    var sel = {};
+    var inputs = document.querySelectorAll('.field-group input[type="checkbox"]');
+    for (var i = 0; i < inputs.length; i++) {
+      sel[inputs[i].id] = inputs[i].checked;
+    }
+    return sel;
+  }
+
+  function defaultExportSelection() {
+    var sel = {};
+    Object.keys(FIELD_IDS).forEach(function (key) { sel[FIELD_IDS[key]] = false; });
+    sel['chk-number'] = true;
+    sel['chk-name'] = true;
+    sel['chk-list'] = true;
+    var freeContainer = document.getElementById('free-custom-fields-container');
+    var freeInputs = freeContainer ? freeContainer.querySelectorAll('input[type="checkbox"]') : [];
+    for (var i = 0; i < freeInputs.length; i++) {
+      sel[freeInputs[i].id] = (freeInputs[i].id === 'chk-free-0' || freeInputs[i].id === 'chk-free-1');
+    }
+    return sel;
+  }
+
+  function applyExportSelection(sel) {
+    if (!sel) return;
+    var inputs = document.querySelectorAll('.field-group input[type="checkbox"]');
+    for (var i = 0; i < inputs.length; i++) {
+      if (sel.hasOwnProperty(inputs[i].id)) inputs[i].checked = !!sel[inputs[i].id];
+    }
+    var ids = ['selall-cardinfo', 'selall-metadata', 'selall-details', 'selall-customfields', 'selall-freecustomfields'];
+    for (var j = 0; j < ids.length; j++) syncSectionToggle(ids[j]);
+  }
+
+  function loadExportSelection(t) {
+    return t.get('member', 'private', EXPORT_SELECTION_KEY, {}).then(function (saved) {
+      if (saved && typeof saved === 'object' && Object.keys(saved).length > 0) applyExportSelection(saved);
+      else applyExportSelection(defaultExportSelection());
+    }).catch(function () {
+      applyExportSelection(defaultExportSelection());
+    });
+  }
+
+  function saveExportSelection(t, btn) {
+    var sel = collectExportSelection();
+    if (btn) btn.disabled = true;
+    return t.set('member', 'private', EXPORT_SELECTION_KEY, sel).then(function () {
+      if (btn) btn.disabled = false;
+      setStatus('Column selection saved.', 'success');
+    }).catch(function (err) {
+      if (btn) btn.disabled = false;
+      setStatus('Save failed: ' + (err && (err.message || err) || 'unknown error'), 'error');
+    });
+  }
+
   function fetchFreeValues(t, cards) {
     var results = {};
     function chunk(start) {
@@ -583,7 +639,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
   }
 
   var FIELD_IDS = {
-    name: 'chk-name', number: 'chk-number', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
+    number: 'chk-number', name: 'chk-name', desc: 'chk-desc', url: 'chk-url', pos: 'chk-pos',
     list: 'chk-list', start: 'chk-start', due: 'chk-due', labels: 'chk-labels', members: 'chk-members',
     checklists: 'chk-checklists', comments: 'chk-comments',
     attachments: 'chk-attachments', activity: 'chk-activity'
@@ -672,8 +728,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function buildCardData(card, freeValues) {
     var obj = {};
-    if (isChecked('name'))  obj.name = card.name;
     if (isChecked('number')) obj.cardNumber = card.idShort;
+    if (isChecked('name'))  obj.name = card.name;
     if (isChecked('desc'))  obj.description = card.desc;
     if (isChecked('url'))   obj.url = card.url;
     if (isChecked('pos'))   obj.position = card.pos;
@@ -937,6 +993,8 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         if (isEdit) { initEdit(t); return; }
         var btn = document.getElementById('btn-export');
         if (btn) btn.onclick = function () { doExport(t); };
+        var saveColsBtn = document.getElementById('btn-save-columns');
+        if (saveColsBtn) saveColsBtn.onclick = function () { saveExportSelection(t, saveColsBtn); };
         wireSectionToggles();
         var filterBtn = document.getElementById('btn-apply-filter');
         if (filterBtn) filterBtn.onclick = function () { applyFilter(t); };
@@ -962,8 +1020,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
             authBtn.disabled = false;
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
-            checkCustomFields(t);
-            renderFreeCustomFields(t).then(function () { renderSettings(); buildFilterControls(); });
+            Promise.all([checkCustomFields(t), renderFreeCustomFields(t)]).then(function () {
+              renderSettings();
+              buildFilterControls();
+              return loadExportSelection(t);
+            });
             setStatus('Authorized! Click Export to continue.', '');
           }).catch(function (err) {
             authBtn.disabled = false;
@@ -974,8 +1035,11 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           if (authed) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('export-section').style.display = 'block';
-            checkCustomFields(t);
-            renderFreeCustomFields(t).then(function () { renderSettings(); buildFilterControls(); });
+            Promise.all([checkCustomFields(t), renderFreeCustomFields(t)]).then(function () {
+              renderSettings();
+              buildFilterControls();
+              return loadExportSelection(t);
+            });
           } else {
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('export-section').style.display = 'none';
