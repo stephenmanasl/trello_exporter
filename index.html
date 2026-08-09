@@ -549,6 +549,23 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return chunk(0);
   }
 
+  function fetchLists(t, boardId) {
+    return t.getRestApi().getToken().then(function (token) {
+      if (!token) return Promise.resolve({});
+      return trelloFetch('/1/boards/' + boardId + '/lists?fields=name', token);
+    }).then(function (lists) {
+      var map = {};
+      if (Array.isArray(lists)) {
+        for (var i = 0; i < lists.length; i++) {
+          map[lists[i].id] = lists[i].name;
+        }
+      }
+      return map;
+    }).catch(function () {
+      return {};
+    });
+  }
+
   function setEditStatus(text, cls) {
     var el = document.getElementById('edit-status');
     if (!el) return;
@@ -726,14 +743,14 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     }).join('\n');
   }
 
-  function buildCardData(card, freeValues) {
+  function buildCardData(card, freeValues, listsMap) {
     var obj = {};
     if (isChecked('number')) obj.cardNumber = card.idShort;
     if (isChecked('name'))  obj.name = card.name;
     if (isChecked('desc'))  obj.description = card.desc;
     if (isChecked('url'))   obj.url = card.url;
     if (isChecked('pos'))   obj.position = card.pos;
-    if (isChecked('list'))  obj.listName = card.list ? card.list.name : '';
+    if (isChecked('list'))  obj.listName = listsMap ? (listsMap[card.idList] || '') : (card.list ? card.list.name : '');
     if (isChecked('start')) obj.startDate = card.start || '';
     if (isChecked('due'))   obj.dueDate = card.due || '';
     if (isChecked('labels')) obj.labels = (card.labels || []).map(function (l) { return { name: l.name, color: l.color }; });
@@ -827,13 +844,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     };
   }
 
-  function exportJSON(cards, freeValues) {
+  function exportJSON(cards, freeValues, listsMap) {
     var checkedFields = getCheckedFields();
     var cfDefs = getCheckedCustomFieldDefs();
     if (checkedFields.length === 0 && cfDefs.length === 0 && getCheckedFreeFieldDefs().length === 0) { setStatus('Select at least one field.', 'error'); return; }
 
     var data = { board: { name: boardName, url: boardUrl, exportedAt: new Date().toISOString() }, cards: [] };
-    cards.forEach(function (card) { data.cards.push(buildCardData(card, freeValues)); });
+    cards.forEach(function (card) { data.cards.push(buildCardData(card, freeValues, listsMap)); });
 
     var filename = buildExportFilename('json');
     var content = JSON.stringify(data, null, 2);
@@ -841,7 +858,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     setStatus('Exported ' + cards.length + ' cards as JSON → ' + filename + '.', 'success');
   }
 
-  function exportCSV(cards, freeValues) {
+  function exportCSV(cards, freeValues, listsMap) {
     var checkedFields = getCheckedFields();
     var cfDefs = getCheckedCustomFieldDefs();
     if (checkedFields.length === 0 && cfDefs.length === 0 && getCheckedFreeFieldDefs().length === 0) { setStatus('Select at least one field.', 'error'); return; }
@@ -875,7 +892,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
           case 'desc':  val = card.desc; break;
           case 'url':   val = card.url; break;
           case 'pos':   val = card.pos; break;
-          case 'list':  val = card.list ? card.list.name : ''; break;
+          case 'list':  val = listsMap ? (listsMap[card.idList] || '') : (card.list ? card.list.name : ''); break;
           case 'start': val = card.start || ''; break;
           case 'due':   val = card.due || ''; break;
           case 'labels': val = (card.labels || []).map(function (l) { return l.name || l.color; }).join(', '); break;
@@ -955,14 +972,13 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }
         var fmt = getFormat();
         var freeChecked = getCheckedFreeFieldDefs();
-        if (freeChecked.length > 0) {
-          return fetchFreeValues(t, cards).then(function (valuesMap) {
-            if (fmt === 'json') exportJSON(cards, valuesMap);
-            else exportCSV(cards, valuesMap);
-          });
-        }
-        if (fmt === 'json') exportJSON(cards, {});
-        else exportCSV(cards, {});
+        var needListNames = isChecked('list');
+        var getValues = freeChecked.length > 0 ? fetchFreeValues(t, cards) : Promise.resolve({});
+        var getLists = needListNames ? fetchLists(t, boardId) : Promise.resolve({});
+        return Promise.all([getValues, getLists]).then(function (results) {
+          if (fmt === 'json') exportJSON(cards, results[0], results[1]);
+          else exportCSV(cards, results[0], results[1]);
+        });
       }).catch(function (err) {
         btn.disabled = false;
         var msg = err && (err.message || err.statusText || err) || 'unknown error';
