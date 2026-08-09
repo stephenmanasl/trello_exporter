@@ -1130,10 +1130,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
               var def = defs[i];
               var value = data.values[def.id];
               var empty = value === undefined || value === '';
-              if (empty && def.type === 'text') continue;
               badges.push({
                 title: def.name,
-                text: empty ? '(none)' : value,
+                text: empty ? (def.type === 'text' ? '' : '(none)') : value,
                 color: empty ? 'gray' : getBadgeColor(value),
                 callback: function (t) {
                   return t.popup({
