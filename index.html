@@ -551,13 +551,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function fetchLists(t, boardId) {
     return t.getRestApi().getToken().then(function (token) {
-      if (!window.__dbg) window.__dbg = [];
-      window.__dbg.push('fetchLists token=' + (token ? 'yes' : 'no'));
       if (!token) return Promise.resolve({});
       return trelloFetch('/1/boards/' + boardId + '/lists?fields=name', token);
     }).then(function (lists) {
-      if (!window.__dbg) window.__dbg = [];
-      window.__dbg.push('fetchLists isArray=' + Array.isArray(lists) + ' len=' + (Array.isArray(lists) ? lists.length : 'n/a'));
       var map = {};
       if (Array.isArray(lists)) {
         for (var i = 0; i < lists.length; i++) {
@@ -565,9 +561,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         }
       }
       return map;
-    }).catch(function (err) {
-      if (!window.__dbg) window.__dbg = [];
-      window.__dbg.push('fetchLists ERROR: ' + (err && (err.message || err)));
+    }).catch(function () {
       return {};
     });
   }
@@ -929,7 +923,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
 
   function buildApiUrl(boardId) {
     var needNested = isChecked('checklists') || isChecked('comments') || isChecked('attachments') || isChecked('activity');
-    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,desc,url,pos,due,start,labels&list=true&members=true&labels=all&customFieldItems=true';
+    var base = '/1/boards/' + boardId + '/cards?fields=name,idShort,idList,desc,url,pos,due,start,labels&list=true&members=true&labels=all&customFieldItems=true';
     if (needNested) {
       base += '&checklists=all&checkItems=all';
       base += '&actions=commentCard,copyCommentCard,createCard,moveCardToBoard,moveCardFromBoard,updateCard,addLabelToCard,removeLabelFromCard,addMemberToCard,removeMemberFromCard,addAttachmentToCard,deleteAttachmentFromCard';
@@ -979,14 +973,9 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
         var fmt = getFormat();
         var freeChecked = getCheckedFreeFieldDefs();
         var needListNames = isChecked('list');
-        if (!window.__dbg) window.__dbg = [];
-        window.__dbg.push('needListNames=' + needListNames + ' cards=' + cards.length + ' chk-list=' + document.getElementById('chk-list').checked);
-        if (cards.length > 0) window.__dbg.push('card0 idList=' + cards[0].idList + ' hasList=' + (cards[0].list !== undefined) + ' listKeys=' + Object.keys(cards[0]).join(','));
         var getValues = freeChecked.length > 0 ? fetchFreeValues(t, cards) : Promise.resolve({});
         var getLists = needListNames ? fetchLists(t, boardId) : Promise.resolve({});
         return Promise.all([getValues, getLists]).then(function (results) {
-          if (!window.__dbg) window.__dbg = [];
-          window.__dbg.push('listsMap keys=' + Object.keys(results[1] || {}).length + ' sample=' + JSON.stringify(results[1]).slice(0, 120));
           if (fmt === 'json') exportJSON(cards, results[0], results[1]);
           else exportCSV(cards, results[0], results[1]);
         });
