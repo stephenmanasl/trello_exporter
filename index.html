@@ -242,14 +242,7 @@ h2 { font-size: 16px; margin-bottom: 8px; color: #5e6c84; text-transform: upperc
     return freeFieldDefs || DEFAULT_FIELD_DEFS;
   }
 
-  var freeFieldDefsLoaded = false;
-  
   function loadFreeFieldDefs(t) {
-    if (freeFieldDefsLoaded) {
-      return Promise.resolve();
-    }
-    freeFieldDefsLoaded = true;
-    
     return t.get('board', 'shared', FREE_DEFS_KEY).then(function (defs) {
       if (Array.isArray(defs) && defs.length === DEFAULT_FIELD_DEFS.length) {
         var idsMatch = true;
